@@ -3,7 +3,7 @@ pub mod load;
 use burn::{
     config::Config,
     module::{Module, Param},
-    tensor::{backend::Backend, BasicOps, Data, Distribution, Float, Int, Tensor},
+    tensor::{backend::Backend, BasicOps, Distribution, Float, Int, Tensor},
     tensor::cast::ToElement, 
 };
 
@@ -16,7 +16,7 @@ use super::clip::{CLIPConfig, CLIP};
 use super::unet::{UNet, UNetConfig};
 use crate::tokenizer::SimpleTokenizer;
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct StableDiffusionConfig {}
 
 impl StableDiffusionConfig {
@@ -192,7 +192,7 @@ impl<B: Backend> StableDiffusion<B> {
     }
 
     pub fn unconditional_context(&self, tokenizer: &SimpleTokenizer) -> Tensor<B, 2> {
-        self.context(tokenizer, "").squeeze(0)
+        self.context(tokenizer, "").squeeze() // 0?
     }
 
     pub fn context(&self, tokenizer: &SimpleTokenizer, text: &str) -> Tensor<B, 3> {

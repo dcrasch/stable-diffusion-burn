@@ -9,7 +9,7 @@ use burn::{
     config::Config,
     module::{Module, Param},
     nn::{self, conv},
-    tensor::{backend::Backend, Data, Tensor},
+    tensor::{backend::Backend, Tensor},
 };
 
 use burn::tensor::ElementConversion;

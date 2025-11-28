@@ -23,7 +23,7 @@ use crate::backend::{qkv_attention, attn_decoder_mask};
 
 use std::iter;
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct AutoencoderConfig {}
 
 impl AutoencoderConfig {
@@ -71,7 +71,7 @@ impl<B: Backend> Autoencoder<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct EncoderConfig {
     channels: Vec<(usize, usize)>,
     n_group: usize,
@@ -144,7 +144,7 @@ impl<B: Backend> Encoder<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct DecoderConfig {
     channels: Vec<(usize, usize)>,
     n_group: usize,
@@ -216,7 +216,7 @@ impl<B: Backend> Decoder<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct EncoderBlockConfig {
     n_channels_in: usize,
     n_channels_out: usize,
@@ -265,7 +265,7 @@ impl<B: Backend> EncoderBlock<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct DecoderBlockConfig {
     n_channels_in: usize,
     n_channels_out: usize,
@@ -323,7 +323,7 @@ impl<B: Backend> DecoderBlock<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct PaddedConv2dConfig {
     channels: [usize; 2],
     kernel_size: usize,
@@ -427,7 +427,7 @@ pub struct Padding {
     pad_bottom: usize,
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct MidConfig {
     n_channel: usize,
 }
@@ -462,7 +462,7 @@ impl<B: Backend> Mid<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct ResnetBlockConfig {
     in_channels: usize,
     out_channels: usize,
@@ -527,7 +527,7 @@ impl<B: Backend> ResnetBlock<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct ConvSelfAttentionBlockConfig {
     n_channel: usize,
 }

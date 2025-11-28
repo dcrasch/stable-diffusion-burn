@@ -6,19 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-wgpu-backend = ["burn-wgpu"]
-
-[dependencies.burn-wgpu]
-package = "burn-wgpu"
-git = "https://github.com/burn-rs/burn.git"
-optional = true
+wgpu-backend = ["burn/wgpu"]
 
 [dependencies]
-burn = "0.14.0"
-burn-ndarray = "0.14.0"
-burn-tch = "0.14.0"
-burn-autodiff = "0.14.0"
-tch = "0.15.0"
+burn = { version = "0.19.1", default-features = false, features=["std"] }
+burn-ndarray = "0.19.1"
+burn-tch = "0.19.1"
+burn-autodiff = "0.19.1"
+tch = "0.22.0"
 serde = {version = "1.0.171", features = ["std", "derive"]}
 npy = "0.4.0"
 num-traits = "0.2.15"

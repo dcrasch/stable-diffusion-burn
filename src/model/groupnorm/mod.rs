@@ -6,7 +6,7 @@ use burn::{
     tensor::{backend::Backend, Tensor},
 };
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct GroupNormConfig {
     n_group: usize,
     n_channel: usize,

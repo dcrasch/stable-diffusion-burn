@@ -12,7 +12,7 @@ use burn::{
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "wgpu-backend")] {
-        use burn_wgpu::{WgpuBackend, WgpuDevice, AutoGraphicsApi};
+        use burn::backend::wgpu::{Wgpu, WgpuDevice};
     } else {
         use burn_tch::{LibTorch, LibTorchDevice};
     }
@@ -58,8 +58,8 @@ fn main() {
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "wgpu-backend")] {
-            type Backend = WgpuBackend<AutoGraphicsApi, f32, i32>;
-            let device = WgpuDevice::BestAvailable;
+              type Backend = Wgpu;
+              let device = WgpuDevice::default();
         } else {
             type Backend = LibTorch<f32>;
 

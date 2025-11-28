@@ -29,7 +29,7 @@ fn timestep_embedding<B: Backend>(
     Tensor::cat(vec![args.clone().cos(), args.sin()], 0).unsqueeze()
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct UNetConfig {}
 
 impl UNetConfig {
@@ -196,7 +196,7 @@ trait UNetBlock<B: Backend> {
     fn forward(&self, x: Tensor<B, 4>, emb: Tensor<B, 2>, context: Tensor<B, 3>) -> Tensor<B, 4>;
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct ResTransformerConfig {
     n_channels_in: usize,
     n_channels_embed: usize,
@@ -235,7 +235,7 @@ impl<B: Backend> UNetBlock<B> for ResTransformer<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct ResUpSampleConfig {
     n_channels_in: usize,
     n_channels_embed: usize,
@@ -270,7 +270,7 @@ impl<B: Backend> UNetBlock<B> for ResUpSample<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct ResTransformerUpsampleConfig {
     n_channels_in: usize,
     n_channels_embed: usize,
@@ -316,7 +316,7 @@ impl<B: Backend> UNetBlock<B> for ResTransformerUpsample<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct ResTransformerResConfig {
     n_channels_in: usize,
     n_channels_embed: usize,
@@ -367,7 +367,7 @@ impl<B: Backend> UNetBlock<B> for ResTransformerRes<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config,Debug)]
 pub struct UpsampleConfig {
     n_channels: usize,
 }
@@ -404,7 +404,7 @@ impl<B: Backend> UNetBlock<B> for Upsample<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct DownsampleConfig {
     n_channels: usize,
 }
@@ -426,7 +426,7 @@ impl<B: Backend> UNetBlock<B> for Conv2d<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct SpatialTransformerConfig {
     n_channels: usize,
     n_context_state: usize,
@@ -480,7 +480,7 @@ impl<B: Backend> SpatialTransformer<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct TransformerBlockConfig {
     n_state: usize,
     n_context_state: usize,
@@ -526,7 +526,7 @@ impl<B: Backend> TransformerBlock<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct MLPConfig {
     n_state: usize,
     mult: usize,
@@ -554,7 +554,7 @@ impl<B: Backend> MLP<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct GEGLUConfig {
     n_state_in: usize,
     n_state_out: usize,
@@ -591,7 +591,7 @@ impl<B: Backend> GEGLU<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct MultiHeadAttentionConfig {
     n_state: usize,
     n_context_state: usize,
@@ -652,7 +652,7 @@ impl<B: Backend> MultiHeadAttention<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct ResBlockConfig {
     n_channels_in: usize,
     n_channels_embed: usize,

@@ -15,7 +15,7 @@ use burn::{
 //use crate::backend::Backend as MyBackend;
 use crate::backend::{qkv_attention, attn_decoder_mask};
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct CLIPConfig {
     n_vocab: usize,
     n_state: usize,
@@ -75,7 +75,7 @@ impl<B: Backend> CLIP<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct ResidualDecoderAttentionBlockConfig {
     n_state: usize,
     n_head: usize,
@@ -114,7 +114,7 @@ impl<B: Backend> ResidualDecoderAttentionBlock<B> {
     }
 }
 
-#[derive(Config)]
+#[derive(Config, Debug)]
 pub struct MultiHeadSelfAttentionConfig {
     n_state: usize,
     n_head: usize,
