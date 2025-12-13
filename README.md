@@ -13,7 +13,7 @@ Probably integrate sdxl, https://github.com/CaptainMaso/stable-diffusion-xl-burn
 
 ## AMD gpu using HIP and rocm toolkit
 
-see <README-rocm.md> 
+see [README-rocm.md](./README-rocm.md) 
 
 
 # Old Documentation
