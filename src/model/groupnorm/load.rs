@@ -7,7 +7,7 @@ use burn::{
     config::Config,
     module::{Module, Param},
     nn,
-    tensor::{backend::Backend, Tensor},
+    tensor::{Tensor, backend::Backend},
 };
 
 pub fn load_group_norm<B: Backend>(
@@ -18,13 +18,15 @@ pub fn load_group_norm<B: Backend>(
     let n_channel = load_usize::<B>("n_channel", path, device)?.into();
     let eps = load_f32::<B>("eps", path, device)?.into();
 
-    let gamma = Param::from_tensor(load_tensor::<B, 1>("weight", path, device)
-        .ok()
-        .unwrap_or_else(|| Tensor::ones([n_channel], device))
+    let gamma = Param::from_tensor(
+        load_tensor::<B, 1>("weight", path, device)
+            .ok()
+            .unwrap_or_else(|| Tensor::ones([n_channel], device)),
     );
-    let beta = Param::from_tensor(load_tensor::<B, 1>("bias", path, device)
-        .ok()
-        .unwrap_or_else(|| Tensor::zeros([n_channel], device))
+    let beta = Param::from_tensor(
+        load_tensor::<B, 1>("bias", path, device)
+            .ok()
+            .unwrap_or_else(|| Tensor::zeros([n_channel], device)),
     );
 
     Ok(GroupNorm {

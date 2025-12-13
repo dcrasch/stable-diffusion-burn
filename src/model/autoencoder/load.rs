@@ -7,7 +7,7 @@ use burn::{
     config::Config,
     module::{Module, Param},
     nn,
-    tensor::{backend::Backend, Tensor},
+    tensor::{Tensor, backend::Backend},
 };
 
 use super::*;
@@ -91,7 +91,7 @@ fn load_padded_conv2d<B: Backend>(
     let padding_actual =
         PaddingConfig2d::Explicit(padded_conv.padding_actual[0], padded_conv.padding_actual[1]);
 
-    conv.padding =  burn::module::Ignored(padding_actual);
+    conv.padding = burn::module::Ignored(padding_actual);
     padded_conv.conv = conv;
 
     //record.padding = <PaddingConfig2d as Module<B>>::into_record(padding_actual);

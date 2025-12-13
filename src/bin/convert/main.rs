@@ -2,18 +2,18 @@ use std::env;
 use std::error::Error;
 use std::process;
 
-use stablediffusion::model::stablediffusion::{load::load_stable_diffusion, StableDiffusion};
+use stablediffusion::model::stablediffusion::{StableDiffusion, load::load_stable_diffusion};
 
 use burn::{
     config::Config,
     module::{Module, Param},
     nn,
-    tensor::{backend::Backend, Tensor},
+    tensor::{Tensor, backend::Backend},
 };
 
 use burn_ndarray::{NdArray, NdArrayDevice};
 
-use burn::record::{self, NamedMpkFileRecorder, FullPrecisionSettings, Recorder};
+use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
 
 fn convert_dump_to_model<B: Backend>(
     dump_path: &str,

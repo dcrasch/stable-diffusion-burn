@@ -5,15 +5,15 @@ use burn::{
     module::{Module, Param},
     nn,
     tensor::{
+        Distribution, Int, Tensor,
         activation::{sigmoid, softmax},
         backend::Backend,
         module::embedding,
-        Distribution, Int, Tensor,
     },
 };
 
 //use crate::backend::Backend as MyBackend;
-use crate::backend::{qkv_attention, attn_decoder_mask};
+use crate::backend::{attn_decoder_mask, qkv_attention};
 
 #[derive(Config, Debug)]
 pub struct CLIPConfig {
@@ -27,11 +27,16 @@ pub struct CLIPConfig {
 impl CLIPConfig {
     pub fn init<B: Backend>(&self, device: &B::Device) -> CLIP<B> {
         let token_embedding = nn::EmbeddingConfig::new(self.n_vocab, self.n_state).init(device);
-        let position_embedding =
-            Param::from_tensor(Tensor::random([self.n_ctx, self.n_state], Distribution::Normal(0.0, 1.0), device));
+        let position_embedding = Param::from_tensor(Tensor::random(
+            [self.n_ctx, self.n_state],
+            Distribution::Normal(0.0, 1.0),
+            device,
+        ));
         let blocks = (0..self.n_layer)
             .into_iter()
-            .map(|_| ResidualDecoderAttentionBlockConfig::new(self.n_state, self.n_head).init(device))
+            .map(|_| {
+                ResidualDecoderAttentionBlockConfig::new(self.n_state, self.n_head).init(device)
+            })
             .collect();
         let layer_norm = nn::LayerNormConfig::new(self.n_state).init(device);
 
@@ -168,13 +173,7 @@ impl<B: Backend> MultiHeadSelfAttention<B> {
             self.n_head,
         ));*/
 
-        let wv = qkv_attention(
-            q,
-            k,
-            v,
-            mask,
-            self.n_head,
-        );
+        let wv = qkv_attention(q, k, v, mask, self.n_head);
 
         return self.out.forward(wv);
     }

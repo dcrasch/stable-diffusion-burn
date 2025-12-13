@@ -1,6 +1,6 @@
 use burn::{
     module::Module,
-    tensor::{activation::sigmoid, backend::Backend, Tensor},
+    tensor::{Tensor, activation::sigmoid, backend::Backend},
 };
 
 #[derive(Module, Clone, Debug)]

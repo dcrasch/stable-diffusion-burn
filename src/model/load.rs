@@ -1,7 +1,7 @@
+use burn::prelude::TensorData;
+use burn::tensor::cast::ToElement;
 use npy::{self, NpyData};
 use num_traits::cast::ToPrimitive;
-use burn::tensor::cast::ToElement;
-use burn::prelude::TensorData;
 use std::error::Error;
 use std::io::Read;
 
@@ -9,7 +9,7 @@ use burn::{
     config::Config,
     module::{Module, Param},
     nn::{self, conv},
-    tensor::{backend::Backend, Tensor},
+    tensor::{Tensor, backend::Backend},
 };
 
 use burn::tensor::ElementConversion;
@@ -70,8 +70,8 @@ pub fn load_linear<B: Backend>(
     let bias = load_tensor::<B, 1>("bias", path, device).ok();
 
     Ok(nn::Linear {
-        weight: Param::from_tensor(weight), 
-        bias: bias.map(|t| Param::from_tensor(t)), 
+        weight: Param::from_tensor(weight),
+        bias: bias.map(|t| Param::from_tensor(t)),
     })
 }
 
@@ -82,7 +82,7 @@ pub fn load_embedding<B: Backend>(
     let weight = load_tensor::<B, 2>("weight", path, device)?;
 
     Ok(nn::Embedding {
-        weight: Param::from_tensor(weight), 
+        weight: Param::from_tensor(weight),
     })
 }
 
@@ -96,8 +96,15 @@ pub fn load_layer_norm<B: Backend>(
 
     let [n_state] = weight.dims();
 
-    let mut layer_norm = nn::LayerNormConfig::new(n_state).with_epsilon(eps).init(device);
+    let mut layer_norm = nn::LayerNormConfig::new(n_state)
+        .with_epsilon(eps)
+        .init(device);
     layer_norm.gamma = Param::from_tensor(weight);
+
+    // rocm backend
+    //layer_norm.beta = Some(Param::from_tensor(bias));
+
+    // 0.19.5
     layer_norm.beta = Param::from_tensor(bias);
 
     Ok(layer_norm)
@@ -141,12 +148,12 @@ pub fn load_conv2d<B: Backend>(
     let padding = nn::PaddingConfig2d::Explicit(padding[0], padding[1]);
 
     let mut conv2d = conv::Conv2dConfig::new([n_channels_in, n_channels_out], kernel_size)
-            .with_stride(stride)
-            .with_dilation(dilation)
-            .with_groups(n_group)
-            .with_padding(padding.clone())
-            .with_bias(has_bias)
-            .init(device);
+        .with_stride(stride)
+        .with_dilation(dilation)
+        .with_groups(n_group)
+        .with_padding(padding.clone())
+        .with_bias(has_bias)
+        .init(device);
 
     conv2d.weight = Param::from_tensor(weight);
     conv2d.bias = bias.map(|t| Param::from_tensor(t));
@@ -155,7 +162,7 @@ pub fn load_conv2d<B: Backend>(
     conv2d.dilation = dilation;
     conv2d.groups = n_group;
     conv2d.padding = burn::module::Ignored(padding);
-        
+
     Ok(conv2d)
 }
 

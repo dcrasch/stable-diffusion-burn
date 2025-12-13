@@ -6,9 +6,14 @@ Probably integrate sdxl, https://github.com/CaptainMaso/stable-diffusion-xl-burn
 
 ## Focus
 
-* integrate in https://github.com/evcxr/evcxr jupyter notebook to experiment or https://github.com/DioxusLabs/dioxus
 * use with wgpu backend and rocm backend
+* load models using safetensors format
+* integrate in https://github.com/evcxr/evcxr jupyter notebook to experiment or https://github.com/DioxusLabs/dioxus
 * https://burn.dev/books/burn/
+
+## AMD gpu using HIP and rocm toolkit
+
+see <README-rocm.md> 
 
 
 # Old Documentation
