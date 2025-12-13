@@ -1,19 +1,26 @@
 [package]
 name = "stablediffusion"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 wgpu-backend = ["burn/wgpu"]
+rocm-backend = ["burn/rocm"]
 
 [dependencies]
+### For local development. ###
+#burn = { path="../burn/crates/burn", default-features = false, features=["std"] }
+#burn-ndarray = {path="../burn/crates/burn-ndarray" }
+#burn-autodiff = { path="../burn/crates/burn-autodiff" }
+
 burn = { version = "0.19.1", default-features = false, features=["std"] }
 burn-ndarray = "0.19.1"
 burn-tch = "0.19.1"
 burn-autodiff = "0.19.1"
-tch = "0.22.0"
+tch= "0.22.0"
+
 serde = {version = "1.0.171", features = ["std", "derive"]}
 npy = "0.4.0"
 num-traits = "0.2.15"

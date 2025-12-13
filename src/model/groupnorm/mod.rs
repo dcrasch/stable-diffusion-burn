@@ -3,7 +3,7 @@ pub mod load;
 use burn::{
     config::Config,
     module::{Module, Param},
-    tensor::{backend::Backend, Tensor},
+    tensor::{Tensor, backend::Backend},
 };
 
 #[derive(Config, Debug)]

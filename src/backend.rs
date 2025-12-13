@@ -1,5 +1,5 @@
-use burn::tensor::{activation::softmax, Tensor};
 use burn::prelude::Backend;
+use burn::tensor::{Tensor, activation::softmax};
 
 /*pub type FloatTensor<B, const D: usize> = <B as burn::tensor::backend::Backend>::TensorPrimitive<D>;
 
@@ -70,7 +70,7 @@ impl<E: TchElement> Backend for burn_tch::LibTorch<E> {
                 Some(mask.tensor),
                 0.0,
                 false,
-                None, 
+                None,
             ),
         ))
         .swap_dims(1, 2)
@@ -131,7 +131,8 @@ pub fn attn_decoder_mask<B: Backend>(seq_length: usize, device: &B::Device) -> T
     let mut mask = Tensor::<B, 2>::zeros([seq_length, seq_length], device);
 
     for i in 0..(seq_length - 1) {
-        let values = Tensor::<B, 2>::zeros([1, seq_length - (i + 1)], device).add_scalar(NEG_INFINITY);
+        let values =
+            Tensor::<B, 2>::zeros([1, seq_length - (i + 1)], device).add_scalar(NEG_INFINITY);
         mask = mask.slice_assign([i..i + 1, i + 1..seq_length], values);
     }
 

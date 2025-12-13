@@ -4,11 +4,10 @@ use burn::{
     config::Config,
     module::{Module, Param},
     nn::{
-        self,
+        self, Gelu, PaddingConfig2d,
         conv::{Conv2d, Conv2dConfig},
-        PaddingConfig2d, Gelu,
     },
-    tensor::{activation::softmax, backend::Backend, module::embedding, Distribution, Int, Tensor},
+    tensor::{Distribution, Int, Tensor, activation::softmax, backend::Backend, module::embedding},
 };
 
 use super::groupnorm::*;
@@ -367,7 +366,7 @@ impl<B: Backend> UNetBlock<B> for ResTransformerRes<B> {
     }
 }
 
-#[derive(Config,Debug)]
+#[derive(Config, Debug)]
 pub struct UpsampleConfig {
     n_channels: usize,
 }
@@ -438,7 +437,8 @@ impl SpatialTransformerConfig {
         let norm = GroupNormConfig::new(32, self.n_channels).init(device);
         let proj_in = Conv2dConfig::new([self.n_channels, self.n_channels], [1, 1]).init(device);
         let transformer =
-            TransformerBlockConfig::new(self.n_channels, self.n_context_state, self.n_head).init(device);
+            TransformerBlockConfig::new(self.n_channels, self.n_context_state, self.n_head)
+                .init(device);
         let proj_out = Conv2dConfig::new([self.n_channels, self.n_channels], [1, 1]).init(device);
 
         SpatialTransformer {
@@ -490,10 +490,11 @@ pub struct TransformerBlockConfig {
 impl TransformerBlockConfig {
     fn init<B: Backend>(&self, device: &B::Device) -> TransformerBlock<B> {
         let norm1 = nn::LayerNormConfig::new(self.n_state).init(device);
-        let attn1 = MultiHeadAttentionConfig::new(self.n_state, self.n_state, self.n_head).init(device);
+        let attn1 =
+            MultiHeadAttentionConfig::new(self.n_state, self.n_state, self.n_head).init(device);
         let norm2 = nn::LayerNormConfig::new(self.n_state).init(device);
-        let attn2 =
-            MultiHeadAttentionConfig::new(self.n_state, self.n_context_state, self.n_head).init(device);
+        let attn2 = MultiHeadAttentionConfig::new(self.n_state, self.n_context_state, self.n_head)
+            .init(device);
         let norm3 = nn::LayerNormConfig::new(self.n_state).init(device);
         let mlp = MLPConfig::new(self.n_state, 4).init(device);
 
@@ -668,7 +669,8 @@ impl ResBlockConfig {
             .init(device);
 
         let silu_embed = SILU::new();
-        let lin_embed = nn::LinearConfig::new(self.n_channels_embed, self.n_channels_out).init(device);
+        let lin_embed =
+            nn::LinearConfig::new(self.n_channels_embed, self.n_channels_out).init(device);
 
         let norm_out = GroupNormConfig::new(32, self.n_channels_out).init(device);
         let silu_out = SILU::new();

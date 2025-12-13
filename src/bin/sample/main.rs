@@ -7,14 +7,17 @@ use burn::{
     config::Config,
     module::{Module, Param},
     nn,
-    tensor::{backend::Backend, Tensor},
+    tensor::{Tensor, backend::Backend},
 };
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "wgpu-backend")] {
         use burn::backend::wgpu::{Wgpu, WgpuDevice};
+    }
+    else if #[cfg(feature = "rocm-backend")] {
+       use burn::backend::rocm::{Rocm, RocmDevice};
     } else {
-        use burn_tch::{LibTorch, LibTorchDevice};
+          use burn_tch::{LibTorch, LibTorchDevice};
     }
 }
 
@@ -22,7 +25,7 @@ use std::env;
 use std::io;
 use std::process;
 
-use burn::record::{self, NamedMpkFileRecorder, FullPrecisionSettings, Recorder};
+use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
 
 fn load_stable_diffusion_model_file<B: Backend>(
     filename: &str,
@@ -30,13 +33,20 @@ fn load_stable_diffusion_model_file<B: Backend>(
 ) -> Result<StableDiffusion<B>, record::RecorderError> {
     NamedMpkFileRecorder::<FullPrecisionSettings>::new()
         .load(filename.into(), device)
-        .map(|record| StableDiffusionConfig::new().init(device).load_record(record))
+        .map(|record| {
+            StableDiffusionConfig::new()
+                .init(device)
+                .load_record(record)
+        })
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 7 && args.len() != 8 {
-        eprintln!("Usage: {} <model_type(burn or dump)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]", args[0]);
+        eprintln!(
+            "Usage: {} <model_type(burn or dump)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]",
+            args[0]
+        );
         process::exit(1);
     }
 
@@ -54,15 +64,21 @@ fn main() {
     let output_image_name = &args[6];
 
     // Optional device parameter
-    let device_arg = if args.len() == 8 { Some(&args[7]) } else { None };
+    let device_arg = if args.len() == 8 {
+        Some(&args[7])
+    } else {
+        None
+    };
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "wgpu-backend")] {
               type Backend = Wgpu;
               let device = WgpuDevice::default();
+    } else if #[cfg(feature = "rocm-backend")] {
+          type Backend = Rocm;
+              let device = RocmDevice::default();
         } else {
-            type Backend = LibTorch<f32>;
-
+        type Backend = LibTorch<f32>;
             let device = if let Some(dev_str) = device_arg {
                 match dev_str.to_lowercase().as_str() {
                     "cpu" => LibTorchDevice::Cpu,

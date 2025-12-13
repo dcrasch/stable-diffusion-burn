@@ -3,8 +3,8 @@ pub mod load;
 use burn::{
     config::Config,
     module::{Module, Param},
-    tensor::{backend::Backend, BasicOps, Distribution, Float, Int, Tensor},
-    tensor::cast::ToElement, 
+    tensor::cast::ToElement,
+    tensor::{BasicOps, Distribution, Float, Int, Tensor, backend::Backend},
 };
 
 use num_traits::ToPrimitive;
@@ -12,7 +12,7 @@ use num_traits::ToPrimitive;
 //use crate::backend::Backend as MyBackend;
 
 use super::autoencoder::{Autoencoder, AutoencoderConfig};
-use super::clip::{CLIPConfig, CLIP};
+use super::clip::{CLIP, CLIPConfig};
 use super::unet::{UNet, UNetConfig};
 use crate::tokenizer::SimpleTokenizer;
 
@@ -22,7 +22,8 @@ pub struct StableDiffusionConfig {}
 impl StableDiffusionConfig {
     pub fn init<B: Backend>(&self, device: &B::Device) -> StableDiffusion<B> {
         let n_steps = 1000;
-        let alpha_cumulative_products = Param::from_tensor(offset_cosine_schedule_cumprod::<B>(n_steps as i64, device));
+        let alpha_cumulative_products =
+            Param::from_tensor(offset_cosine_schedule_cumprod::<B>(n_steps as i64, device));
 
         let autoencoder = AutoencoderConfig::new().init(device);
         let diffusion = UNetConfig::new().init(device);
@@ -113,7 +114,11 @@ impl<B: Backend> StableDiffusion<B> {
         let [n_batches, _, _] = context.dims();
 
         let gen_noise = || {
-            Tensor::random([n_batches, 4, 64, 64], Distribution::Normal(0.0, 1.0), &device)
+            Tensor::random(
+                [n_batches, 4, 64, 64],
+                Distribution::Normal(0.0, 1.0),
+                &device,
+            )
         };
 
         let sigma = 0.0; // Use deterministic diffusion
@@ -204,10 +209,8 @@ impl<B: Backend> StableDiffusion<B> {
             .map(|v| v as i32)
             .collect();
 
-        self.clip.forward(
-            Tensor::<B, 1, Int>::from_ints(&tokenized[..], device)
-                .unsqueeze(),
-        )
+        self.clip
+            .forward(Tensor::<B, 1, Int>::from_ints(&tokenized[..], device).unsqueeze())
     }
 }
 

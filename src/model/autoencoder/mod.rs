@@ -4,22 +4,21 @@ use burn::{
     config::Config,
     module::{Module, Param},
     nn::{
-        self,
+        self, PaddingConfig2d,
         conv::{Conv2d, Conv2dConfig, Conv2dRecord},
-        PaddingConfig2d,
     },
     tensor::{
+        Distribution, Int, Tensor,
         activation::{sigmoid, softmax},
         backend::Backend,
         module::embedding,
-        Distribution, Int, Tensor,
     },
 };
 
 use super::groupnorm::*;
 use super::silu::*;
 //use crate::backend::Backend as MyBackend;
-use crate::backend::{qkv_attention, attn_decoder_mask};
+use crate::backend::{attn_decoder_mask, qkv_attention};
 
 use std::iter;
 
@@ -29,9 +28,10 @@ pub struct AutoencoderConfig {}
 impl AutoencoderConfig {
     pub fn init<B: Backend>(&self, device: &B::Device) -> Autoencoder<B> {
         let encoder =
-            EncoderConfig::new(vec![(128, 128), (128, 256), (256, 512), (512, 512)], 32, 8).init(device);
-        let decoder =
-            DecoderConfig::new(vec![(512, 512), (512, 512), (512, 256), (256, 128)], 32).init(device);
+            EncoderConfig::new(vec![(128, 128), (128, 256), (256, 512), (512, 512)], 32, 8)
+                .init(device);
+        let decoder = DecoderConfig::new(vec![(512, 512), (512, 512), (512, 256), (256, 128)], 32)
+            .init(device);
         let quant_conv = Conv2dConfig::new([8, 8], [1, 1]).init(device);
         let post_quant_conv = Conv2dConfig::new([4, 4], [1, 1]).init(device);
 
@@ -357,10 +357,10 @@ impl PaddedConv2dConfig {
         let stride = self.stride;
 
         let padding = Padding {
-            pad_left: self.padding.pad_left, 
-            pad_right: self.padding.pad_right, 
-            pad_top: self.padding.pad_top, 
-            pad_bottom: self.padding.pad_bottom, 
+            pad_left: self.padding.pad_left,
+            pad_right: self.padding.pad_right,
+            pad_top: self.padding.pad_top,
+            pad_bottom: self.padding.pad_bottom,
         };
 
         PaddedConv2d {
@@ -591,15 +591,9 @@ impl<B: Backend> ConvSelfAttentionBlock<B> {
         .swap_dims(1, 2)
         .reshape([n_batch, n_channel, height, width]);*/
 
-        let wv = qkv_attention(
-            q,
-            k,
-            v,
-            None,
-            1,
-        )
-        .swap_dims(1, 2)
-        .reshape([n_batch, n_channel, height, width]);
+        let wv = qkv_attention(q, k, v, None, 1)
+            .swap_dims(1, 2)
+            .reshape([n_batch, n_channel, height, width]);
 
         let projected = self.proj_out.forward(wv);
 
