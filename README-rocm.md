@@ -49,18 +49,31 @@ Read the readme! And create a version
 
 ### Fix cubecl and example
 
+```
 cd cubecl
 examples/gelu/Cargo.toml
 hip = ["cubecl/hip"]
+```
 
 examples/gelu/examples/gelu.rs
+```
 #[cfg(feature = "hip")]    
 gelu::launch::<cubecl::hip::HipRuntime>(&Default::default());
+```
+examples/gelu/Cargo.toml
+```
+hip = ["cubecl/hip"]
+```
 
-Supported for graphics card (gfx1201)
+#### Supported for graphics card (gfx1201)
+
+```
 thread 'main' (40614) panicked at crates/cubecl-hip/src/runtime.rs:90:9:
 assertion `left == right` failed
-Add arch to amdarchitecture
+````
+
+#### Add arch to amdarchitecture
+
 cubecl-cpp/src/hip/arch.rs
 add GFX gfx12, same as gfx11
 
