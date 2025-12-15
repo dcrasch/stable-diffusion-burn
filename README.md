@@ -38,7 +38,7 @@ Invoke the sample binary provided in the rust code. By default, torch is used. T
 # torch (at least 6 GB VRAM, possibly less)
 # Arguments: <model_type(burn or dump)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [cuda, mps, cpu]
 
-# Cuda
+# Cuda (about 20 seconds)
 cargo run --release --bin sample burn SDv1-4 7.5 20 "An ancient mossy stone." img cuda
 
 # Mps(Mac)

@@ -102,10 +102,10 @@ pub fn load_layer_norm<B: Backend>(
     layer_norm.gamma = Param::from_tensor(weight);
 
     // rocm backend
-    //layer_norm.beta = Some(Param::from_tensor(bias));
+    layer_norm.beta = Some(Param::from_tensor(bias));
 
     // 0.19.5
-    layer_norm.beta = Param::from_tensor(bias);
+    //layer_norm.beta = Param::from_tensor(bias);
 
     Ok(layer_norm)
 }

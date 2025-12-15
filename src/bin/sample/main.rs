@@ -9,6 +9,7 @@ use burn::{
     nn,
     tensor::{Tensor, backend::Backend},
 };
+use burn_import::safetensors::{AdapterType, LoadArgs, SafetensorsFileRecorder};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "wgpu-backend")] {
@@ -31,13 +32,28 @@ fn load_stable_diffusion_model_file<B: Backend>(
     filename: &str,
     device: &B::Device,
 ) -> Result<StableDiffusion<B>, record::RecorderError> {
+    /*
     NamedMpkFileRecorder::<FullPrecisionSettings>::new()
-        .load(filename.into(), device)
+    .load(filename.into(), device)
         .map(|record| {
             StableDiffusionConfig::new()
                 .init(device)
                 .load_record(record)
         })
+    */
+    let record = NamedMpkFileRecorder::<FullPrecisionSettings>::default()
+        .load(filename.into(), device)
+        .expect("Should decode state successfully");
+
+    // Load weights from Safetensors file
+    //let load_args = LoadArgs::new("../../models/sd-v1-4.safetensors".into())
+    //    .with_key_remap("(layer[1-4])\\.([0-9]+)\\.(.+)", "$1.blocks.$2.$3");
+    //let record = SafetensorsFileRecorder::<FullPrecisionSettings>::default()
+    //    .load(load_args, device)?;
+
+    Ok(StableDiffusionConfig::new()
+        .init(device)
+        .load_record(record))
 }
 
 fn main() {
