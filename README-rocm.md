@@ -5,7 +5,7 @@
 # rocm (60 seconds)
 
 ```
-cargo run --release --features rocm-backend --bin sample burn SDv1-4 7.5 20 "An ancient mossy stone." img
+cargo run --release --features rocm-backend --bin sample burn SDv1-4.mpk 7.5 20 "An ancient mossy stone." img
 ```
 
 This command will generate an image according to the provided prompt, which will be saved as 'img0.png'.
