@@ -17,10 +17,12 @@ This command will generate an image according to the provided prompt, which will
 ### Get development version from github
 
 ```
-git clone https://github.com/tracel-ai/burn
-git clone https://github.com/tracel-ai/cubecl/
+git clone https://github.com/tracel-ai/burn --branch v0.19.1
+git clone https://github.com/tracel-ai/cubecl/ --branch v0.8.1
+###--branch   "7.0.5183101"
 git clone https://github.com/tracel-ai/cubecl-hip-sys/
-git clone https://github.com/tracel-ai/cubek
+## cubek 0.1
+git clone https://github.com/tracel-ai/cubek --branch v0.0.1
 ```
 
 #### Run the exampele
@@ -59,10 +61,6 @@ examples/gelu/examples/gelu.rs
 ```
 #[cfg(feature = "hip")]    
 gelu::launch::<cubecl::hip::HipRuntime>(&Default::default());
-```
-examples/gelu/Cargo.toml
-```
-hip = ["cubecl/hip"]
 ```
 
 #### Supported for graphics card (gfx1201)
