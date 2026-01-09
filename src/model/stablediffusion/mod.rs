@@ -3,34 +3,38 @@ pub mod load;
 use burn::{
     config::Config,
     module::{Module, Param},
-    tensor::cast::ToElement,
-    tensor::{BasicOps, Distribution, Float, Int, Tensor, backend::Backend},
+    tensor::{Distribution, Int, Tensor, backend::Backend, cast::ToElement},
 };
 
-use num_traits::ToPrimitive;
-
-//use crate::backend::Backend as MyBackend;
+use burn::tensor::{Shape, TensorData};
+use candle_core::{Device, Tensor as CandleTensor, safetensors};
+use std::{collections::HashMap, f64::consts::PI, path::PathBuf};
 
 use super::autoencoder::{Autoencoder, AutoencoderConfig};
 use super::clip::{CLIP, CLIPConfig};
 use super::unet::{UNet, UNetConfig};
-use crate::tokenizer::SimpleTokenizer;
+use crate::{
+    model::autoencoder::load::load_autoencoder_from_safetensors, tokenizer::SimpleTokenizer,
+};
 
 #[derive(Config, Debug)]
-pub struct StableDiffusionConfig {}
+pub struct StableDiffusionConfig {
+    train_steps: usize,
+}
 
 impl StableDiffusionConfig {
+    // Initialize a Stable Diffusion Model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> StableDiffusion<B> {
-        let n_steps = 1000;
-        let alpha_cumulative_products =
-            Param::from_tensor(offset_cosine_schedule_cumprod::<B>(n_steps as i64, device));
+        let alpha_cumulative_products = Param::from_tensor(offset_cosine_schedule_cumprod::<B>(
+            self.train_steps as i64,
+            device,
+        ));
 
         let autoencoder = AutoencoderConfig::new().init(device);
         let diffusion = UNetConfig::new().init(device);
         let clip = CLIPConfig::new(49408, 768, 12, 77, 12).init(device);
 
         StableDiffusion {
-            n_steps,
             alpha_cumulative_products,
             autoencoder,
             diffusion,
@@ -41,7 +45,6 @@ impl StableDiffusionConfig {
 
 #[derive(Module, Debug)]
 pub struct StableDiffusion<B: Backend> {
-    n_steps: usize,
     alpha_cumulative_products: Param<Tensor<B, 1>>,
     autoencoder: Autoencoder<B>,
     diffusion: UNet<B>,
@@ -108,8 +111,8 @@ impl<B: Backend> StableDiffusion<B> {
         n_steps: usize,
     ) -> Tensor<B, 4> {
         let device = context.device();
-
-        let step_size = self.n_steps / n_steps;
+        let train_timesteps = 1000; // get from config n_steps
+        let step_size = train_timesteps / n_steps;
 
         let [n_batches, _, _] = context.dims();
 
@@ -125,7 +128,7 @@ impl<B: Backend> StableDiffusion<B> {
 
         let mut latent = gen_noise();
 
-        for t in (0..self.n_steps).rev().step_by(step_size) {
+        for t in (0..train_timesteps).rev().step_by(step_size) {
             let current_alpha: f64 = self
                 .alpha_cumulative_products
                 .val()
@@ -182,16 +185,6 @@ impl<B: Backend> StableDiffusion<B> {
         );
 
         let conditional_latent = self.diffusion.forward(latent, timestep, context);
-
-        /*let latent = self.diffusion.forward(
-            latent.repeat(0, 2),
-            timestep.repeat(0, 2),
-            Tensor::cat(vec![unconditional_context.unsqueeze::<3>(), context], 0)
-        );
-
-        let unconditional_latent = latent.clone().slice([0..n_batch]);
-        let conditional_latent = latent.slice([n_batch..2 * n_batch]);*/
-
         unconditional_latent.clone()
             + (conditional_latent - unconditional_latent) * unconditional_guidance_scale
     }
@@ -212,9 +205,44 @@ impl<B: Backend> StableDiffusion<B> {
         self.clip
             .forward(Tensor::<B, 1, Int>::from_ints(&tokenized[..], device).unsqueeze())
     }
-}
 
-use std::f64::consts::PI;
+    pub fn from_safetensors(
+        file_path: PathBuf,
+        device: &B::Device,
+        config: StableDiffusionConfig,
+    ) -> StableDiffusionRecord<B> {
+        let weight_results = safetensors::load::<PathBuf>(file_path, &Device::Cpu);
+        let model_name = "sd";
+
+        // Match on the result of loading the weights
+        let weights = match weight_results {
+            Ok(weights) => weights,
+            Err(e) => panic!("Error loading weights: {:?}", e),
+        };
+
+        // stable_diffusion.alphas_cumprod
+
+        // layers
+        let mut encoder_layers: HashMap<String, CandleTensor> = HashMap::new();
+        for (key, value) in weights.iter() {
+            let prefix = String::from(model_name) + ".";
+            let key_without_prefix = key.replace(&prefix, "");
+            if key_without_prefix.starts_with("encoder.layer.") {
+                encoder_layers.insert(key_without_prefix, value.clone());
+            }
+            if key.starts_with("alphas_cumprod") {}
+        }
+        let encoder_record = load_autoencoder_from_safetensors::<B>(encoder_layers, device);
+        let model_record = StableDiffusionRecord {
+            alpha_cumulative_products: todo!(),
+            autoencoder: todo!(),
+            diffusion: todo!(),
+            clip: todo!(),
+        };
+
+        model_record
+    }
+}
 
 fn cosine_schedule<B: Backend>(n_steps: i64, device: &B::Device) -> Tensor<B, 1> {
     Tensor::arange(1..n_steps + 1, device)
@@ -237,4 +265,16 @@ fn offset_cosine_schedule<B: Backend>(n_steps: i64, device: &B::Device) -> Tenso
 
 fn offset_cosine_schedule_cumprod<B: Backend>(n_steps: i64, device: &B::Device) -> Tensor<B, 1> {
     offset_cosine_schedule::<B>(n_steps, device).powf_scalar(2.0)
+}
+
+pub(crate) fn load_1d_tensor_from_candle<B: Backend>(
+    tensor: &CandleTensor,
+    device: &B::Device,
+) -> Tensor<B, 1> {
+    let dims = tensor.dims();
+    let data = tensor.to_vec1::<f32>().unwrap();
+    let array: [usize; 1] = dims.try_into().expect("Unexpected size");
+    let data = TensorData::new(data, Shape::new(array));
+    let weight = Tensor::<B, 1>::from_floats(data, &device.clone());
+    weight
 }

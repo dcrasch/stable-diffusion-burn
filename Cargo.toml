@@ -15,7 +15,7 @@ burn = { path="../burn/crates/burn", default-features = false, features=["std"] 
 burn-ndarray = {path="../burn/crates/burn-ndarray" }
 burn-autodiff = { path="../burn/crates/burn-autodiff" }
 burn-tch = {path="../burn/crates/burn-tch"}
-burn-import = {path="../burn/crates/burn-import"}
+##burn-import = {path="../burn/crates/burn-import"}
 
 #burn = { version = "0.19.1", default-features = false, features=["std"] }
 #burn-ndarray = "0.19.1"
@@ -31,3 +31,4 @@ rust_tokenizers = "8.1.0"
 regex = "1.9.1"
 image = "0.24.6"
 cfg-if = "0.1"
+candle-core = { version = "0.8.4" }

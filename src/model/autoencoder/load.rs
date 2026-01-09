@@ -1,14 +1,8 @@
-use super::GroupNorm;
 use crate::model::load::*;
 
 use std::error::Error;
 
-use burn::{
-    config::Config,
-    module::{Module, Param},
-    nn,
-    tensor::{Tensor, backend::Backend},
-};
+use burn::tensor::backend::Backend;
 
 use super::*;
 use crate::model::groupnorm::load::load_group_norm;
@@ -195,4 +189,21 @@ pub fn load_autoencoder<B: Backend>(
         quant_conv,
         post_quant_conv,
     })
+}
+
+use candle_core::{Device, Tensor as CandleTensor, safetensors};
+use std::collections::HashMap;
+
+pub fn load_autoencoder_from_safetensors<B: Backend>(
+    autoencoder_tensors: HashMap<String, CandleTensor>,
+    device: &B::Device,
+) -> AutoencoderRecord<B> {
+    //let encoder: load_encoder_from_safetensor::<B>(autoencoder_tensors, device);
+
+    AutoencoderRecord {
+        encoder: todo!(),
+        decoder: todo!(),
+        quant_conv: todo!(),
+        post_quant_conv: todo!(),
+    }
 }

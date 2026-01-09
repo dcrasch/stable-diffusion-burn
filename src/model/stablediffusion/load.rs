@@ -17,8 +17,7 @@ pub fn load_stable_diffusion<B: Backend>(
     path: &str,
     device: &B::Device,
 ) -> Result<StableDiffusion<B>, Box<dyn Error>> {
-    // stable_diffusion.alphas_cumprod.shape[0]
-     let n_steps = load_usize::<B>("n_steps", path, device)?;
+    // stable_diffusion.alphas_cumprod.shape[0] , moved to config
     // stable_diffusion.alphas_cumprod
     let alpha_cumulative_products =
         Param::from_tensor(load_tensor::<B, 1>("alphas_cumprod", path, device)?);
@@ -27,15 +26,19 @@ pub fn load_stable_diffusion<B: Backend>(
 
     // stable_diffusion.model.diffusion_model
     let diffusion = load_unet(&format!("{}/{}", path, "unet"), device)?;
-    
+
     // stable_diffusion.cond_stage_model.transformer.text_model
     let clip = load_clip(&format!("{}/{}", path, "clip"), device)?;
 
     Ok(StableDiffusion {
-        n_steps,
         alpha_cumulative_products,
         autoencoder,
         diffusion,
         clip,
     })
+}
+
+pub fn load_model_config(_path: PathBuf) -> StableDiffusionConfig {
+    //let mut model_config = StableDiffusionConfig::load(path).expect("Config file present");
+    StableDiffusionConfig { train_steps: 1000 }
 }

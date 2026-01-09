@@ -1,15 +1,9 @@
 use stablediffusion::{
-    model::stablediffusion::{load::load_stable_diffusion, *},
+    model::stablediffusion::{load::load_model_config, load::load_stable_diffusion, *},
     tokenizer::SimpleTokenizer,
 };
 
-use burn::{
-    config::Config,
-    module::{Module, Param},
-    nn,
-    tensor::{Tensor, backend::Backend},
-};
-use burn_import::safetensors::{AdapterType, LoadArgs, SafetensorsFileRecorder};
+use burn::{module::Module, tensor::backend::Backend};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "wgpu-backend")] {
@@ -22,9 +16,7 @@ cfg_if::cfg_if! {
     }
 }
 
-use std::env;
-use std::io;
-use std::process;
+use std::{path::PathBuf, process};
 
 use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
 
@@ -32,28 +24,26 @@ fn load_stable_diffusion_model_file<B: Backend>(
     filename: &str,
     device: &B::Device,
 ) -> Result<StableDiffusion<B>, record::RecorderError> {
-    /*
-    NamedMpkFileRecorder::<FullPrecisionSettings>::new()
-    .load(filename.into(), device)
-        .map(|record| {
-            StableDiffusionConfig::new()
-                .init(device)
-                .load_record(record)
-        })
-    */
     let record = NamedMpkFileRecorder::<FullPrecisionSettings>::default()
         .load(filename.into(), device)
         .expect("Should decode state successfully");
-
-    // Load weights from Safetensors file
-    //let load_args = LoadArgs::new("../../models/sd-v1-4.safetensors".into())
-    //    .with_key_remap("(layer[1-4])\\.([0-9]+)\\.(.+)", "$1.blocks.$2.$3");
-    //let record = SafetensorsFileRecorder::<FullPrecisionSettings>::default()
-    //    .load(load_args, device)?;
-
-    Ok(StableDiffusionConfig::new()
+    Ok(StableDiffusionConfig::new(1000)
         .init(device)
         .load_record(record))
+}
+
+fn load_stable_diffusion_safetensor<B: Backend>(
+    model_file: &str,
+    device: &B::Device,
+) -> Result<StableDiffusion<B>, record::RecorderError> {
+    let model_config = load_model_config(PathBuf::new());
+
+    let model_record: StableDiffusionRecord<B> =
+        StableDiffusion::from_safetensors(PathBuf::from(model_file), device, model_config.clone());
+
+    Ok(StableDiffusionConfig::new(1000)
+        .init(device)
+        .load_record(model_record))
 }
 
 fn main() {
@@ -79,22 +69,21 @@ fn main() {
     let prompt = &args[5];
     let output_image_name = &args[6];
 
-    // Optional device parameter
-    let device_arg = if args.len() == 8 {
-        Some(&args[7])
-    } else {
-        None
-    };
-
     cfg_if::cfg_if! {
         if #[cfg(feature = "wgpu-backend")] {
-              type Backend = Wgpu;
-              let device = WgpuDevice::default();
-    } else if #[cfg(feature = "rocm-backend")] {
-          type Backend = Rocm;
-              let device = RocmDevice::default();
+            type Backend = Wgpu;
+            let device = WgpuDevice::default();
+        } else if #[cfg(feature = "rocm-backend")] {
+            type Backend = Rocm;
+            let device = RocmDevice::default();
         } else {
-        type Backend = LibTorch<f32>;
+            type Backend = LibTorch<f32>;
+            // Optional device parameter
+            let device_arg = if args.len() == 8 {
+                Some(&args[7])
+            } else {
+                None
+            };
             let device = if let Some(dev_str) = device_arg {
                 match dev_str.to_lowercase().as_str() {
                     "cpu" => LibTorchDevice::Cpu,
@@ -117,16 +106,19 @@ fn main() {
     println!("Loading tokenizer...");
     let tokenizer = SimpleTokenizer::new().unwrap();
     println!("Loading model...");
-    let sd: StableDiffusion<Backend> = if model_type == "burn" {
-        load_stable_diffusion_model_file(model_name, &device).unwrap_or_else(|err| {
-            eprintln!("Error loading model: {}", err);
-            process::exit(1);
-        })
-    } else {
-        load_stable_diffusion(model_name, &device).unwrap_or_else(|err| {
-            eprintln!("Error loading model dump: {}", err);
-            process::exit(1);
-        })
+    let sd: StableDiffusion<Backend> = match model_type.as_str() {
+        "burn" => load_stable_diffusion_model_file(model_name, &device).unwrap_or_else(|err| {
+            panic!("Error loading model: {}", err);
+        }),
+        "dump" => load_stable_diffusion(model_name, &device).unwrap_or_else(|err| {
+            panic!("Error loading model dump: {}", err);
+        }),
+        "safetensor" => {
+            load_stable_diffusion_safetensor(model_name, &device).unwrap_or_else(|err| {
+                panic!("Error loading safetensor model: {}", err);
+            })
+        }
+        _ => panic!("Unknown model"),
     };
 
     let unconditional_context = sd.unconditional_context(&tokenizer);
@@ -152,23 +144,5 @@ fn save_images(images: &Vec<Vec<u8>>, basepath: &str, width: u32, height: u32) -
         let path = format!("{}{}.png", basepath, index);
         image::save_buffer(path, &img_data[..], width, height, Rgb8)?;
     }
-
     Ok(())
-}
-
-// save red test image
-fn save_test_image() -> ImageResult<()> {
-    let width = 256;
-    let height = 256;
-    let raw: Vec<_> = (0..width * height)
-        .into_iter()
-        .flat_map(|i| {
-            let row = i / width;
-            let red = (255.0 * row as f64 / height as f64) as u8;
-
-            [red, 0, 0]
-        })
-        .collect();
-
-    image::save_buffer("red.png", &raw[..], width, height, Rgb8)
 }

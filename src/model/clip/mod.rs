@@ -4,12 +4,7 @@ use burn::{
     config::Config,
     module::{Module, Param},
     nn,
-    tensor::{
-        Distribution, Int, Tensor,
-        activation::{sigmoid, softmax},
-        backend::Backend,
-        module::embedding,
-    },
+    tensor::{Distribution, Int, Tensor, activation::sigmoid, backend::Backend},
 };
 
 //use crate::backend::Backend as MyBackend;
@@ -25,6 +20,7 @@ pub struct CLIPConfig {
 }
 
 impl CLIPConfig {
+    /// Initializes a CLIP model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> CLIP<B> {
         let token_embedding = nn::EmbeddingConfig::new(self.n_vocab, self.n_state).init(device);
         let position_embedding = Param::from_tensor(Tensor::random(
@@ -87,6 +83,7 @@ pub struct ResidualDecoderAttentionBlockConfig {
 }
 
 impl ResidualDecoderAttentionBlockConfig {
+    /// Initializes a ResidualDecoderAttentionBlock model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> ResidualDecoderAttentionBlock<B> {
         let attn = MultiHeadSelfAttentionConfig::new(self.n_state, self.n_head).init(device);
         let attn_ln = nn::LayerNormConfig::new(self.n_state).init(device);
@@ -126,6 +123,7 @@ pub struct MultiHeadSelfAttentionConfig {
 }
 
 impl MultiHeadSelfAttentionConfig {
+    /// init MultiHeadSelfAttention with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> MultiHeadSelfAttention<B> {
         assert!(
             self.n_state % self.n_head == 0,
@@ -186,6 +184,7 @@ pub struct MLPConfig {
 }
 
 impl MLPConfig {
+    /// init MLP with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> MLP<B> {
         let fc1 = nn::LinearConfig::new(self.input_size, self.hidden_size).init(device);
         let gelu = QuickGELU::new();

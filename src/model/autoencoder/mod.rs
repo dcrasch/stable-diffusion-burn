@@ -2,30 +2,23 @@ pub mod load;
 
 use burn::{
     config::Config,
-    module::{Module, Param},
+    module::Module,
     nn::{
-        self, PaddingConfig2d,
-        conv::{Conv2d, Conv2dConfig, Conv2dRecord},
+        PaddingConfig2d,
+        conv::{Conv2d, Conv2dConfig},
     },
-    tensor::{
-        Distribution, Int, Tensor,
-        activation::{sigmoid, softmax},
-        backend::Backend,
-        module::embedding,
-    },
+    tensor::{Tensor, backend::Backend},
 };
 
 use super::groupnorm::*;
 use super::silu::*;
-//use crate::backend::Backend as MyBackend;
 use crate::backend::{attn_decoder_mask, qkv_attention};
-
-use std::iter;
 
 #[derive(Config, Debug)]
 pub struct AutoencoderConfig {}
 
 impl AutoencoderConfig {
+    /// Initializes a Autoencoder model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> Autoencoder<B> {
         let encoder =
             EncoderConfig::new(vec![(128, 128), (128, 256), (256, 512), (512, 512)], 32, 8)
@@ -79,6 +72,7 @@ pub struct EncoderConfig {
 }
 
 impl EncoderConfig {
+    /// Initializes a Encoder model with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> Encoder<B> {
         let n_expanded_channels_initial = self
             .channels
@@ -151,6 +145,7 @@ pub struct DecoderConfig {
 }
 
 impl DecoderConfig {
+    /// Initializes a Decoder model with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> Decoder<B> {
         let n_expanded_channels = self
             .channels
@@ -224,6 +219,7 @@ pub struct EncoderBlockConfig {
 }
 
 impl EncoderBlockConfig {
+    /// Initialize EncoderBlock model with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> EncoderBlock<B> {
         let res1 = ResnetBlockConfig::new(self.n_channels_in, self.n_channels_out).init(device);
         let res2 = ResnetBlockConfig::new(self.n_channels_out, self.n_channels_out).init(device);
@@ -273,6 +269,7 @@ pub struct DecoderBlockConfig {
 }
 
 impl DecoderBlockConfig {
+    /// Initialize DecoderBlock model with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> DecoderBlock<B> {
         let res1 = ResnetBlockConfig::new(self.n_channels_in, self.n_channels_out).init(device);
         let res2 = ResnetBlockConfig::new(self.n_channels_out, self.n_channels_out).init(device);
@@ -333,6 +330,7 @@ pub struct PaddedConv2dConfig {
 }
 
 impl PaddedConv2dConfig {
+    /// Initialize PaddedConv2d model with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> PaddedConv2d<B> {
         let calc_padding = |p_left, p_right| {
             let n = if p_left >= p_right {
@@ -433,6 +431,7 @@ pub struct MidConfig {
 }
 
 impl MidConfig {
+    /// Initialize MidConfig model with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> Mid<B> {
         let block_1 = ResnetBlockConfig::new(self.n_channel, self.n_channel).init(device);
         let attn = ConvSelfAttentionBlockConfig::new(self.n_channel).init(device);
@@ -469,6 +468,7 @@ pub struct ResnetBlockConfig {
 }
 
 impl ResnetBlockConfig {
+    /// Initialize ResnetBlock model with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> ResnetBlock<B> {
         let norm1 = GroupNormConfig::new(32, self.in_channels).init(device);
         let conv1 = Conv2dConfig::new([self.in_channels, self.out_channels], [3, 3])
@@ -533,6 +533,7 @@ pub struct ConvSelfAttentionBlockConfig {
 }
 
 impl ConvSelfAttentionBlockConfig {
+    /// Initialize ConvSelfAttentionBlock model with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> ConvSelfAttentionBlock<B> {
         let norm = GroupNormConfig::new(32, self.n_channel).init(device);
         let q = Conv2dConfig::new([self.n_channel, self.n_channel], [1, 1]).init(device);

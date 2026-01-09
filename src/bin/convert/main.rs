@@ -4,12 +4,7 @@ use std::process;
 
 use stablediffusion::model::stablediffusion::{StableDiffusion, load::load_stable_diffusion};
 
-use burn::{
-    config::Config,
-    module::{Module, Param},
-    nn,
-    tensor::{Tensor, backend::Backend},
-};
+use burn::{module::Module, tensor::backend::Backend};
 
 use burn_ndarray::{NdArray, NdArrayDevice};
 

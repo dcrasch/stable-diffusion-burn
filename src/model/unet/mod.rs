@@ -32,6 +32,7 @@ fn timestep_embedding<B: Backend>(
 pub struct UNetConfig {}
 
 impl UNetConfig {
+    /// Initializes a Autoencoder model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> UNet<B> {
         let lin1_time_embed = nn::LinearConfig::new(320, 1280).init(device);
         let silu_time_embed = SILU::new();
@@ -736,7 +737,7 @@ impl<B: Backend> ResBlock<B> {
 }
 
 impl<B: Backend> UNetBlock<B> for ResBlock<B> {
-    fn forward(&self, x: Tensor<B, 4>, emb: Tensor<B, 2>, context: Tensor<B, 3>) -> Tensor<B, 4> {
+    fn forward(&self, x: Tensor<B, 4>, emb: Tensor<B, 2>, _context: Tensor<B, 3>) -> Tensor<B, 4> {
         self.forward(x, emb)
     }
 }
