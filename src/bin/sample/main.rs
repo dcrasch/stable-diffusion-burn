@@ -1,9 +1,16 @@
+use std::{error::Error, path::PathBuf, process};
+
+use burn::module::Module;
+use burn::tensor::backend::Backend;
+use burn_store::BurnpackStore;
+use burn_store::ModuleSnapshot;
+
+use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
+
 use stablediffusion::{
-    model::stablediffusion::{load::load_model_config, load::load_stable_diffusion, *},
+    model::stablediffusion::{StableDiffusion, StableDiffusionConfig},
     tokenizer::SimpleTokenizer,
 };
-
-use burn::{module::Module, tensor::backend::Backend};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "wgpu-backend")] {
@@ -16,9 +23,21 @@ cfg_if::cfg_if! {
     }
 }
 
-use std::{path::PathBuf, process};
+fn load_stable_diffusion_model_store<B: Backend>(
+    filename: &str,
+    device: &B::Device,
+) -> Result<StableDiffusion<B>, Box<dyn Error>> {
+    let model_config = StableDiffusionConfig::new(1000);
+    let mut model = model_config.init::<B>(device);
 
-use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
+    let tensor_path = PathBuf::from(filename);
+    
+    let mut store = BurnpackStore::from_file(tensor_path);
+    println!("Loading model");
+    let result = model.load_from(&mut store);
+    println!("{:?}",result);
+    Ok(model)
+}
 
 fn load_stable_diffusion_model_file<B: Backend>(
     filename: &str,
@@ -32,25 +51,11 @@ fn load_stable_diffusion_model_file<B: Backend>(
         .load_record(record))
 }
 
-fn load_stable_diffusion_safetensor<B: Backend>(
-    model_file: &str,
-    device: &B::Device,
-) -> Result<StableDiffusion<B>, record::RecorderError> {
-    let model_config = load_model_config(PathBuf::new());
-
-    let model_record: StableDiffusionRecord<B> =
-        StableDiffusion::from_safetensors(PathBuf::from(model_file), device, model_config.clone());
-
-    Ok(StableDiffusionConfig::new(1000)
-        .init(device)
-        .load_record(model_record))
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 7 && args.len() != 8 {
         eprintln!(
-            "Usage: {} <model_type(burn or dump)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]",
+            "Usage: {} <model_type(burn or safetensor)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]",
             args[0]
         );
         process::exit(1);
@@ -110,14 +115,7 @@ fn main() {
         "burn" => load_stable_diffusion_model_file(model_name, &device).unwrap_or_else(|err| {
             panic!("Error loading model: {}", err);
         }),
-        "dump" => load_stable_diffusion(model_name, &device).unwrap_or_else(|err| {
-            panic!("Error loading model dump: {}", err);
-        }),
-        "safetensor" => {
-            load_stable_diffusion_safetensor(model_name, &device).unwrap_or_else(|err| {
-                panic!("Error loading safetensor model: {}", err);
-            })
-        }
+        "safetensor" => todo!("todo autoconvert"),
         _ => panic!("Unknown model"),
     };
 

@@ -1,5 +1,3 @@
-pub mod load;
-
 use burn::{
     config::Config,
     module::{Module, Param},
@@ -7,7 +5,6 @@ use burn::{
     tensor::{Distribution, Int, Tensor, activation::sigmoid, backend::Backend},
 };
 
-//use crate::backend::Backend as MyBackend;
 use crate::backend::{attn_decoder_mask, qkv_attention};
 
 #[derive(Config, Debug)]

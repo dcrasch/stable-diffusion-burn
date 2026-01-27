@@ -5,7 +5,7 @@
 # rocm (60 seconds)
 
 ```
-cargo run --release --features rocm-backend --bin sample burn SDv1-4 7.5 20 "An ancient mossy stone." img
+cargo run --release --features rocm-backend --bin sample burn SDv1-4.mpk 7.5 20 "An ancient mossy stone." img
 ```
 
 This command will generate an image according to the provided prompt, which will be saved as 'img0.png'.
@@ -64,6 +64,8 @@ gelu::launch::<cubecl::hip::HipRuntime>(&Default::default());
 ```
 
 #### Supported for graphics card (gfx1201)
+
+Is now supported since 0.20. 
 
 ```
 thread 'main' (40614) panicked at crates/cubecl-hip/src/runtime.rs:90:9:

@@ -1,34 +1,56 @@
-use std::env;
 use std::error::Error;
+use std::path::Path;
 use std::process;
+use std::{env, path::PathBuf};
 
-use stablediffusion::model::stablediffusion::{StableDiffusion, load::load_stable_diffusion};
-
-use burn::{module::Module, tensor::backend::Backend};
-
+use burn::tensor::backend::Backend;
 use burn_ndarray::{NdArray, NdArrayDevice};
+use burn_store::{BurnpackStore, ModuleSnapshot, SafetensorsStore};
 
-use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
+use stablediffusion::model::stablediffusion::StableDiffusionConfig;
 
-fn convert_dump_to_model<B: Backend>(
-    dump_path: &str,
-    model_name: &str,
+fn convert_safetensor_to_model<B: Backend>(
+    input_file: &str,
+    output_file: &str,
     device: &B::Device,
 ) -> Result<(), Box<dyn Error>> {
-    println!("Loading dump...");
-    let model: StableDiffusion<B> = load_stable_diffusion(dump_path, device)?;
+    println!("Loading safetensor...");
 
-    println!("Saving model...");
-    save_model_file(model, model_name)?;
+    let model_config = StableDiffusionConfig::new(1000);
+    let mut model = model_config.init::<B>(device);
 
+    let tensor_path = PathBuf::from(input_file);
+    let mut store = build_store(&tensor_path);
+
+    println!("Loading model");
+    let result = model.load_from(&mut store);
+    // TODO report
+    // TODO fix stuff
+    // TODO validate
+    println!("Saving burnpack...");
+    let mut store = BurnpackStore::from_file(&output_file)
+        .overwrite(true)
+        .metadata("format", "safetensor")
+        .metadata("description", "Sample file for examining Burnpack format")
+        .metadata("version", env!("CARGO_PKG_VERSION"))
+        .metadata("author", "Burn Example");
+    model.save_into(&mut store).expect("Failed to save model");
     Ok(())
 }
 
-fn save_model_file<B: Backend>(
-    model: StableDiffusion<B>,
-    name: &str,
-) -> Result<(), record::RecorderError> {
-    NamedMpkFileRecorder::<FullPrecisionSettings>::new().record(model.into_record(), name.into())
+fn build_store(path: &Path) -> SafetensorsStore {
+    let mut store = SafetensorsStore::from_file(path);
+    for &(from, to) in key_remap_rules() {
+        store = store.with_key_remapping(from, to);
+    }
+    store.allow_partial(true).validate(true)
+}
+
+fn key_remap_rules() -> &'static [(&'static str, &'static str)] {
+    &[(
+        r"^(encoder\.(?:patch_encoder|image_encoder)(?:\.blocks\.\d+)?\.norm\d?)\.weight$",
+        "$1.gamma",
+    )]
 }
 
 fn main() {
@@ -44,7 +66,7 @@ fn main() {
     let dump_path = &args[1];
     let model_name = &args[2];
 
-    if let Err(e) = convert_dump_to_model::<Backend>(dump_path, model_name, &device) {
+    if let Err(e) = convert_safetensor_to_model::<Backend>(dump_path, model_name, &device) {
         eprintln!("Failed to convert dump to model: {:?}", e);
         process::exit(1);
     }

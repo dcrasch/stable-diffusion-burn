@@ -1,19 +1,16 @@
-pub mod load;
-
 use burn::{
     config::Config,
-    module::{Module, Param},
+    module::Module,
     nn::{
         self, Gelu, PaddingConfig2d,
         conv::{Conv2d, Conv2dConfig},
     },
-    tensor::{Distribution, Int, Tensor, activation::softmax, backend::Backend, module::embedding},
+    tensor::{Int, Tensor, backend::Backend},
 };
 
+use super::attention::qkv_attention;
 use super::groupnorm::*;
 use super::silu::*;
-
-use super::attention::qkv_attention;
 
 fn timestep_embedding<B: Backend>(
     timesteps: Tensor<B, 1, Int>,

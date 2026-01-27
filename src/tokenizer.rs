@@ -1,8 +1,8 @@
-use regex::Regex;
 use std::collections::HashMap;
-
 use std::fs::File;
 use std::io::{self, BufRead};
+
+use regex::Regex;
 
 fn bytes_to_unicode() -> Vec<(u8, char)> {
     let mut bs: Vec<u8> = ('!' as u8..='~' as u8)

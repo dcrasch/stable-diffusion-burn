@@ -1,4 +1,4 @@
-pub mod load;
+use std::f64::consts::PI;
 
 use burn::{
     config::Config,
@@ -6,20 +6,20 @@ use burn::{
     tensor::{Distribution, Int, Tensor, backend::Backend, cast::ToElement},
 };
 
-use burn::tensor::{Shape, TensorData};
-use candle_core::{Device, Tensor as CandleTensor, safetensors};
-use std::{collections::HashMap, f64::consts::PI, path::PathBuf};
-
 use super::autoencoder::{Autoencoder, AutoencoderConfig};
 use super::clip::{CLIP, CLIPConfig};
 use super::unet::{UNet, UNetConfig};
-use crate::{
-    model::autoencoder::load::load_autoencoder_from_safetensors, tokenizer::SimpleTokenizer,
-};
+use crate::tokenizer::SimpleTokenizer;
 
 #[derive(Config, Debug)]
 pub struct StableDiffusionConfig {
     train_steps: usize,
+}
+
+impl Default for StableDiffusionConfig {
+    fn default() -> Self {
+        StableDiffusionConfig { train_steps: 1000 }
+    }
 }
 
 impl StableDiffusionConfig {
@@ -205,43 +205,6 @@ impl<B: Backend> StableDiffusion<B> {
         self.clip
             .forward(Tensor::<B, 1, Int>::from_ints(&tokenized[..], device).unsqueeze())
     }
-
-    pub fn from_safetensors(
-        file_path: PathBuf,
-        device: &B::Device,
-        config: StableDiffusionConfig,
-    ) -> StableDiffusionRecord<B> {
-        let weight_results = safetensors::load::<PathBuf>(file_path, &Device::Cpu);
-        let model_name = "sd";
-
-        // Match on the result of loading the weights
-        let weights = match weight_results {
-            Ok(weights) => weights,
-            Err(e) => panic!("Error loading weights: {:?}", e),
-        };
-
-        // stable_diffusion.alphas_cumprod
-
-        // layers
-        let mut encoder_layers: HashMap<String, CandleTensor> = HashMap::new();
-        for (key, value) in weights.iter() {
-            let prefix = String::from(model_name) + ".";
-            let key_without_prefix = key.replace(&prefix, "");
-            if key_without_prefix.starts_with("encoder.layer.") {
-                encoder_layers.insert(key_without_prefix, value.clone());
-            }
-            if key.starts_with("alphas_cumprod") {}
-        }
-        let encoder_record = load_autoencoder_from_safetensors::<B>(encoder_layers, device);
-        let model_record = StableDiffusionRecord {
-            alpha_cumulative_products: todo!(),
-            autoencoder: todo!(),
-            diffusion: todo!(),
-            clip: todo!(),
-        };
-
-        model_record
-    }
 }
 
 fn cosine_schedule<B: Backend>(n_steps: i64, device: &B::Device) -> Tensor<B, 1> {
@@ -265,16 +228,4 @@ fn offset_cosine_schedule<B: Backend>(n_steps: i64, device: &B::Device) -> Tenso
 
 fn offset_cosine_schedule_cumprod<B: Backend>(n_steps: i64, device: &B::Device) -> Tensor<B, 1> {
     offset_cosine_schedule::<B>(n_steps, device).powf_scalar(2.0)
-}
-
-pub(crate) fn load_1d_tensor_from_candle<B: Backend>(
-    tensor: &CandleTensor,
-    device: &B::Device,
-) -> Tensor<B, 1> {
-    let dims = tensor.dims();
-    let data = tensor.to_vec1::<f32>().unwrap();
-    let array: [usize; 1] = dims.try_into().expect("Unexpected size");
-    let data = TensorData::new(data, Shape::new(array));
-    let weight = Tensor::<B, 1>::from_floats(data, &device.clone());
-    weight
 }

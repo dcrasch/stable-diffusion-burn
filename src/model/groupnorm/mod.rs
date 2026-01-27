@@ -1,5 +1,3 @@
-pub mod load;
-
 use burn::{
     config::Config,
     module::{Module, Param},
