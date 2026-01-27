@@ -10,7 +10,7 @@ use burn::{
 
 use super::groupnorm::*;
 use super::silu::*;
-use crate::backend::{attn_decoder_mask, qkv_attention};
+use crate::backend::qkv_attention;
 
 #[derive(Config, Debug)]
 pub struct AutoencoderConfig {}

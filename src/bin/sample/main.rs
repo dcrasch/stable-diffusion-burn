@@ -1,11 +1,9 @@
 use std::{error::Error, path::PathBuf, process};
 
 use burn::module::Module;
-use burn::tensor::backend::Backend;
-use burn_store::BurnpackStore;
-use burn_store::ModuleSnapshot;
-
 use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
+use burn::store::{BurnpackStore, ModuleSnapshot};
+use burn::tensor::backend::Backend;
 
 use stablediffusion::{
     model::stablediffusion::{StableDiffusion, StableDiffusionConfig},
@@ -17,9 +15,12 @@ cfg_if::cfg_if! {
         use burn::backend::wgpu::{Wgpu, WgpuDevice};
     }
     else if #[cfg(feature = "rocm-backend")] {
-       use burn::backend::rocm::{Rocm, RocmDevice};
-    } else {
-          use burn_tch::{LibTorch, LibTorchDevice};
+        use burn::backend::rocm::{Rocm, RocmDevice};
+    } else if #[cfg(feature = "torch-backend")]{
+        use burn::backend::torch::{LibTorch,LibTorchDevice};
+    }
+    else {
+        use burn::backend::ndarray::{NdArray, NdArrayDevice};
     }
 }
 
@@ -31,11 +32,11 @@ fn load_stable_diffusion_model_store<B: Backend>(
     let mut model = model_config.init::<B>(device);
 
     let tensor_path = PathBuf::from(filename);
-    
+
     let mut store = BurnpackStore::from_file(tensor_path);
     println!("Loading model");
     let result = model.load_from(&mut store);
-    println!("{:?}",result);
+    println!("{:?}", result);
     Ok(model)
 }
 
@@ -81,7 +82,7 @@ fn main() {
         } else if #[cfg(feature = "rocm-backend")] {
             type Backend = Rocm;
             let device = RocmDevice::default();
-        } else {
+        } else if #[cfg(feature = "torch-backend")] {
             type Backend = LibTorch<f32>;
             // Optional device parameter
             let device_arg = if args.len() == 8 {
@@ -106,6 +107,10 @@ fn main() {
                 LibTorchDevice::Cuda(0)
             };
         }
+        else {
+            type Backend = NdArray;
+            let device = NdArrayDevice::default();
+        }
     }
 
     println!("Loading tokenizer...");
@@ -115,7 +120,11 @@ fn main() {
         "burn" => load_stable_diffusion_model_file(model_name, &device).unwrap_or_else(|err| {
             panic!("Error loading model: {}", err);
         }),
-        "safetensor" => todo!("todo autoconvert"),
+        "safetensor" => {
+            load_stable_diffusion_model_store(model_name, &device).unwrap_or_else(|err| {
+                panic!("Error loading model from store: {}", err);
+            })
+        }
         _ => panic!("Unknown model"),
     };
 

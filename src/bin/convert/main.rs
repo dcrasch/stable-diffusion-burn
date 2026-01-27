@@ -3,9 +3,9 @@ use std::path::Path;
 use std::process;
 use std::{env, path::PathBuf};
 
+use burn::backend::ndarray::{NdArray, NdArrayDevice};
+use burn::store::{BurnpackStore, ModuleSnapshot, SafetensorsStore};
 use burn::tensor::backend::Backend;
-use burn_ndarray::{NdArray, NdArrayDevice};
-use burn_store::{BurnpackStore, ModuleSnapshot, SafetensorsStore};
 
 use stablediffusion::model::stablediffusion::StableDiffusionConfig;
 
@@ -27,6 +27,7 @@ fn convert_safetensor_to_model<B: Backend>(
     // TODO report
     // TODO fix stuff
     // TODO validate
+    println!("{:?}", result);
     println!("Saving burnpack...");
     let mut store = BurnpackStore::from_file(&output_file)
         .overwrite(true)

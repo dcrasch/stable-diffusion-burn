@@ -260,7 +260,7 @@ pub struct ResUpSample<B: Backend> {
 }
 
 impl<B: Backend> UNetBlock<B> for ResUpSample<B> {
-    fn forward(&self, x: Tensor<B, 4>, emb: Tensor<B, 2>, context: Tensor<B, 3>) -> Tensor<B, 4> {
+    fn forward(&self, x: Tensor<B, 4>, emb: Tensor<B, 2>, _context: Tensor<B, 3>) -> Tensor<B, 4> {
         let x = self.res.forward(x, emb);
         let x = self.upsample.forward(x);
         x
@@ -396,7 +396,7 @@ impl<B: Backend> Upsample<B> {
 }
 
 impl<B: Backend> UNetBlock<B> for Upsample<B> {
-    fn forward(&self, x: Tensor<B, 4>, emb: Tensor<B, 2>, context: Tensor<B, 3>) -> Tensor<B, 4> {
+    fn forward(&self, x: Tensor<B, 4>, _emb: Tensor<B, 2>, _context: Tensor<B, 3>) -> Tensor<B, 4> {
         self.forward(x)
     }
 }
@@ -418,7 +418,7 @@ impl DownsampleConfig {
 type Downsample<B> = Conv2d<B>;
 
 impl<B: Backend> UNetBlock<B> for Conv2d<B> {
-    fn forward(&self, x: Tensor<B, 4>, emb: Tensor<B, 2>, context: Tensor<B, 3>) -> Tensor<B, 4> {
+    fn forward(&self, x: Tensor<B, 4>, _emb: Tensor<B, 2>, _context: Tensor<B, 3>) -> Tensor<B, 4> {
         self.forward(x)
     }
 }

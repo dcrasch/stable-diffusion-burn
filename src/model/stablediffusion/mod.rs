@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use burn::{
     config::Config,
     module::{Module, Param},
@@ -59,7 +57,7 @@ impl<B: Backend> StableDiffusion<B> {
         unconditional_guidance_scale: f64,
         n_steps: usize,
     ) -> Vec<Vec<u8>> {
-        let [n_batch, _, _] = context.dims();
+        let [_n_batch, _, _] = context.dims();
 
         let latent = self.sample_latent(
             context,
@@ -205,13 +203,6 @@ impl<B: Backend> StableDiffusion<B> {
         self.clip
             .forward(Tensor::<B, 1, Int>::from_ints(&tokenized[..], device).unsqueeze())
     }
-}
-
-fn cosine_schedule<B: Backend>(n_steps: i64, device: &B::Device) -> Tensor<B, 1> {
-    Tensor::arange(1..n_steps + 1, device)
-        .float()
-        .mul_scalar(PI * 0.5 / n_steps as f64)
-        .cos()
 }
 
 fn offset_cosine_schedule<B: Backend>(n_steps: i64, device: &B::Device) -> Tensor<B, 1> {
