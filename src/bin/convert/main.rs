@@ -7,7 +7,9 @@ use burn::backend::ndarray::{NdArray, NdArrayDevice};
 use burn::store::{BurnpackStore, ModuleSnapshot, SafetensorsStore};
 use burn::tensor::backend::Backend;
 
+use burn_store::{ApplyResult, PyTorchToBurnAdapter};
 use stablediffusion::model::stablediffusion::StableDiffusionConfig;
+use stablediffusion::model::clip::CLIPConfig;
 
 fn convert_safetensor_to_model<B: Backend>(
     input_file: &str,
@@ -16,8 +18,8 @@ fn convert_safetensor_to_model<B: Backend>(
 ) -> Result<(), Box<dyn Error>> {
     println!("Loading safetensor...");
 
-    let model_config = StableDiffusionConfig::new(1000);
-    let mut model = model_config.init::<B>(device);
+    let clip_config = CLIPConfig::new(49408, 768, 12, 77, 12);
+    let mut model = clip_config.init::<B>(device);
 
     let tensor_path = PathBuf::from(input_file);
     let mut store = build_store(&tensor_path);
@@ -27,7 +29,16 @@ fn convert_safetensor_to_model<B: Backend>(
     // TODO report
     // TODO fix stuff
     // TODO validate
-    println!("{:?}", result);
+    match result  {
+        Ok(ApplyResult { applied, skipped,missing, unused, errors,.. }) => { 
+            println!("applied {:#?}",applied);
+            //println!("missing: {:#?}",missing);
+            //println!("unused: {:#?}",unused);
+            println!("errors: {:#?}",errors);
+
+    },
+        _ => ()
+    }
     println!("Saving burnpack...");
     let mut store = BurnpackStore::from_file(&output_file)
         .overwrite(true)
@@ -44,14 +55,19 @@ fn build_store(path: &Path) -> SafetensorsStore {
     for &(from, to) in key_remap_rules() {
         store = store.with_key_remapping(from, to);
     }
-    store.allow_partial(true).validate(true)
+    store
+     .with_full_path("cond_stage_model.transformer.text_model")
+        .with_from_adapter(PyTorchToBurnAdapter)
+        .allow_partial(true)
+        .validate(true)
 }
 
 fn key_remap_rules() -> &'static [(&'static str, &'static str)] {
-    &[(
-        r"^(encoder\.(?:patch_encoder|image_encoder)(?:\.blocks\.\d+)?\.norm\d?)\.weight$",
-        "$1.gamma",
-    )]
+    &[
+        (r"\.bias$", ".beta"),
+        (r"\.weight$", ".gamma"),
+        (r"cond_stage_model\.transformer\.text_model\.final_layer_norm\.(.*)","layer_norm.$1"),
+    ]
 }
 
 fn main() {
