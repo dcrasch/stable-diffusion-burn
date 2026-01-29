@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+#![allow(unused)]
 use std::error::Error;
 use std::path::Path;
 use std::process;
@@ -8,6 +10,7 @@ use burn::store::{BurnpackStore, ModuleSnapshot, SafetensorsStore};
 use burn::tensor::backend::Backend;
 
 use burn_store::{ApplyResult, PyTorchToBurnAdapter};
+use stablediffusion::model::autoencoder::AutoencoderConfig;
 use stablediffusion::model::clip::CLIPConfig;
 use stablediffusion::model::stablediffusion::StableDiffusionConfig;
 
@@ -18,9 +21,11 @@ fn convert_safetensor_to_model<B: Backend>(
 ) -> Result<(), Box<dyn Error>> {
     println!("Loading safetensor...");
 
-    let clip_config = CLIPConfig::new(49408, 768, 12, 77, 12);
-    let mut model = clip_config.init::<B>(device);
+    //let clip_config = CLIPConfig::new(49408, 768, 12, 77, 12);
+    //let mut model = clip_config.init::<B>(device);
 
+    let autoencoder_config = AutoencoderConfig::new();
+    let mut model = autoencoder_config.init::<B>(device);
     let tensor_path = PathBuf::from(input_file);
     let mut store = build_store(&tensor_path);
 
@@ -42,7 +47,9 @@ fn convert_safetensor_to_model<B: Backend>(
             //println!("unused: {:#?}",unused);
             println!("errors: {:#?}", errors);
         }
-        _ => (),
+        Err(e) => {
+            println!("{:#?}", e);
+        }
     }
     println!("Saving burnpack...");
     let mut store = BurnpackStore::from_file(&output_file)
@@ -57,13 +64,40 @@ fn convert_safetensor_to_model<B: Backend>(
 
 fn build_store(path: &Path) -> SafetensorsStore {
     let mut store = SafetensorsStore::from_file(path);
-    for &(from, to) in key_remap_rules_clip() {
+    for &(from, to) in key_remap_rules_autoencoder() {
         store = store.with_key_remapping(from, to);
     }
     store
         .with_from_adapter(PyTorchToBurnAdapter)
         .allow_partial(true)
         .validate(true)
+}
+fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
+    &[
+        // autoencoder: first_stage_model
+        (r"first_stage_model\.post_quant_conv", "post_quant_conv"),
+        (r"first_stage_model\.quant_conv", "quant_conv"),
+        (
+            r"first_stage_model\.decoder\.mid\.block_(1|2)\.(.*)",
+            "decoder.mid.block_$1.$2",
+        ),
+        (
+            r"first_stage_model\.decoder\.mid\.block_(1|2)\.(.*)",
+            "decoder.mid.block_$1.$2",
+        ),
+        (
+            r"first_stage_model\.decoder\.mid\.attn_1\.norm\.bias",
+            "decoder.mid.attn.norm.beta",
+        ),
+        (
+            r"first_stage_model\.decoder\.mid\.attn_1\.norm\.weight",
+            "decoder.mid.attn.norm.gamma",
+        ),
+        (
+            r"first_stage_model\.decoder\.mid\.attn_1\.(q|k|v|proj_out)",
+            "decoder.mid.attn.$1",
+        ),
+    ]
 }
 
 fn key_remap_rules_clip() -> &'static [(&'static str, &'static str)] {
