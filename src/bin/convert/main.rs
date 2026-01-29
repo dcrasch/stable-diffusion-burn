@@ -8,8 +8,8 @@ use burn::store::{BurnpackStore, ModuleSnapshot, SafetensorsStore};
 use burn::tensor::backend::Backend;
 
 use burn_store::{ApplyResult, PyTorchToBurnAdapter};
-use stablediffusion::model::stablediffusion::StableDiffusionConfig;
 use stablediffusion::model::clip::CLIPConfig;
+use stablediffusion::model::stablediffusion::StableDiffusionConfig;
 
 fn convert_safetensor_to_model<B: Backend>(
     input_file: &str,
@@ -29,15 +29,20 @@ fn convert_safetensor_to_model<B: Backend>(
     // TODO report
     // TODO fix stuff
     // TODO validate
-    match result  {
-        Ok(ApplyResult { applied, skipped,missing, unused, errors,.. }) => { 
-            println!("applied {:#?}",applied);
-            //println!("missing: {:#?}",missing);
+    match result {
+        Ok(ApplyResult {
+            applied,
+            skipped,
+            missing,
+            unused,
+            errors,
+        }) => {
+            println!("applied {:#?}", applied);
+            println!("missing: {:#?}", missing);
             //println!("unused: {:#?}",unused);
-            println!("errors: {:#?}",errors);
-
-    },
-        _ => ()
+            println!("errors: {:#?}", errors);
+        }
+        _ => (),
     }
     println!("Saving burnpack...");
     let mut store = BurnpackStore::from_file(&output_file)
@@ -52,21 +57,70 @@ fn convert_safetensor_to_model<B: Backend>(
 
 fn build_store(path: &Path) -> SafetensorsStore {
     let mut store = SafetensorsStore::from_file(path);
-    for &(from, to) in key_remap_rules() {
+    for &(from, to) in key_remap_rules_clip() {
         store = store.with_key_remapping(from, to);
     }
     store
-     .with_full_path("cond_stage_model.transformer.text_model")
         .with_from_adapter(PyTorchToBurnAdapter)
         .allow_partial(true)
         .validate(true)
 }
 
-fn key_remap_rules() -> &'static [(&'static str, &'static str)] {
+fn key_remap_rules_clip() -> &'static [(&'static str, &'static str)] {
     &[
-        (r"\.bias$", ".beta"),
-        (r"\.weight$", ".gamma"),
-        (r"cond_stage_model\.transformer\.text_model\.final_layer_norm\.(.*)","layer_norm.$1"),
+        // clip model: cond_stage_model.transformer.text_model
+        (
+            r"cond_stage_model\.transformer\.text_model\.final_layer_norm\.bias",
+            "layer_norm.beta",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.final_layer_norm\.weight",
+            "layer_norm.gamma",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.embeddings\.position_embedding\.weight",
+            "position_embedding",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.embeddings\.token_embedding",
+            "token_embedding",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.self_attn\.k_proj",
+            "blocks.$1.attn.key",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.self_attn\.out_proj",
+            "blocks.$1.attn.out",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.self_attn\.q_proj",
+            "blocks.$1.attn.query",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.self_attn\.v_proj",
+            "blocks.$1.attn.value",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.layer_norm1\.bias",
+            "blocks.$1.attn_ln.beta",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.layer_norm1\.weight",
+            "blocks.$1.attn_ln.gamma",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.mlp\.(.*)",
+            "blocks.$1.mlp.$2",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.layer_norm2\.bias",
+            "blocks.$1.mlp_ln.beta",
+        ),
+        (
+            r"cond_stage_model\.transformer\.text_model\.encoder\.layers\.(\d+)\.layer_norm2\.weight",
+            "blocks.$1.mlp_ln.gamma",
+        ),
     ]
 }
 

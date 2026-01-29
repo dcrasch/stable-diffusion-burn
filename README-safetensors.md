@@ -3,4 +3,3 @@
 ```
 cargo run --release --bin convert ../../models/sd-v1-4.safetensors sd-1.4.bkp
 ```
-
