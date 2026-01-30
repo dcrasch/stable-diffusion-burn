@@ -42,11 +42,9 @@ fn convert_safetensor_to_model<B: Backend>(
             unused,
             errors,
         }) => {
-            let a = applied.iter().filter(|x|x.starts_with("encoder")).cloned().collect::<Vec<String>>();
-            let m = missing.iter().filter(|x|x.starts_with("encoder")).cloned().collect::<Vec<String>>();
-            println!("applied {:#?}", a);
+            println!("applied {:#?}", applied);
             println!("decoder----");
-            println!("missing: {:#?}", m);
+            println!("missing: {:#?}", missing);
             //println!("unused: {:#?}",unused);
             println!("errors: {:#?}", errors);
         }
