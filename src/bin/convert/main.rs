@@ -129,7 +129,7 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             r"first_stage_model\.decoder\.up\.2\.upsample\.conv\.(.*)",
             "decoder.blocks.1.upsampler.$1",
         ),
-        // 3 -> 0 
+        // 3 -> 0
         (
             r"first_stage_model\.decoder\.up\.3\.block\.0\.(.*)",
             "decoder.blocks.0.res1.$1",
@@ -148,11 +148,11 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
         ),
         (
             r"first_stage_model\.decoder\.norm_out.weight",
-            "decoder.norm_out.gamma"
+            "decoder.norm_out.gamma",
         ),
         (
             r"first_stage_model\.decoder\.norm_out.bias",
-            "decoder.norm_out.beta"
+            "decoder.norm_out.beta",
         ),
         // fix up weights
         (
@@ -192,11 +192,9 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             r"first_stage_model\.decoder\.mid\.attn_1\.(q|k|v|proj_out)",
             "decoder.mid.attn.$1",
         ),
-
         // encoder
         (r"first_stage_model\.encoder\.conv_in", "encoder.conv_in"),
         (r"first_stage_model\.encoder\.conv_out", "encoder.conv_out"),
-
         (
             r"first_stage_model\.encoder\.down\.(\d+)\.block\.0\.(.*)",
             "encoder.blocks.$1.res1.$2",
@@ -209,7 +207,6 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             r"first_stage_model\.encoder\.down\.(\d+)\.downsample\.conv\.(.*)",
             "encoder.blocks.$1.downsampler.conv.$2",
         ),
-        
         // encoder mid
         (
             r"first_stage_model\.encoder\.mid\.block_(1|2)\.(.*)",
@@ -231,13 +228,13 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             r"first_stage_model\.encoder\.mid\.attn_1\.(q|k|v|proj_out)",
             "encoder.mid.attn.$1",
         ),
-                (
+        (
             r"first_stage_model\.encoder\.norm_out.weight",
-            "encoder.norm_out.gamma"
+            "encoder.norm_out.gamma",
         ),
         (
             r"first_stage_model\.encoder\.norm_out.bias",
-            "encoder.norm_out.beta"
+            "encoder.norm_out.beta",
         ),
         // fix up weights
         (
@@ -256,7 +253,6 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             r"encoder\.mid\.block_(\d+)\.norm(\d+)\.weight",
             "encoder.mid.block_$1.norm$2.gamma",
         ),
-
     ]
 }
 

@@ -19,8 +19,7 @@ impl AutoencoderConfig {
     /// Initializes a Autoencoder model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> Autoencoder<B> {
         let encoder =
-            EncoderConfig::new(vec![(128, 128), (128, 256), (256, 512), (512, 512)], 
-            32, 8)
+            EncoderConfig::new(vec![(128, 128), (128, 256), (256, 512), (512, 512)], 32, 8)
                 .init(device);
         let decoder = DecoderConfig::new(vec![(512, 512), (512, 512), (512, 256), (256, 128)], 32)
             .init(device); // weird reversed
