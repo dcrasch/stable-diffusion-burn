@@ -42,9 +42,11 @@ fn convert_safetensor_to_model<B: Backend>(
             unused,
             errors,
         }) => {
-            println!("applied {:#?}", applied);
+            let a = applied.iter().filter(|x|x.starts_with("encoder")).cloned().collect::<Vec<String>>();
+            let m = missing.iter().filter(|x|x.starts_with("encoder")).cloned().collect::<Vec<String>>();
+            println!("applied {:#?}", a);
             println!("decoder----");
-            println!("missing: {:#?}", missing);
+            println!("missing: {:#?}", m);
             //println!("unused: {:#?}",unused);
             println!("errors: {:#?}", errors);
         }
@@ -82,6 +84,7 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
         (r"first_stage_model\.decoder\.conv_in", "decoder.conv_in"),
         (r"first_stage_model\.decoder\.conv_out", "decoder.conv_out"),
         // autoencoder: decoder.blocks.0.res1.conv2.weight reversed and 1-indexed :-(
+        // 0 -> 3
         (
             r"first_stage_model\.decoder\.up\.0\.block\.0\.(.*)",
             "decoder.blocks.3.res1.$1",
@@ -94,6 +97,7 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             r"first_stage_model\.decoder\.up\.0\.block\.2\.(.*)",
             "decoder.blocks.3.res3.$1",
         ),
+        // 1 -> 2
         (
             r"first_stage_model\.decoder\.up\.1\.block\.0\.(.*)",
             "decoder.blocks.2.res1.$1",
@@ -107,6 +111,11 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             "decoder.blocks.2.res3.$1",
         ),
         (
+            r"first_stage_model\.decoder\.up\.1\.upsample\.conv\.(.*)",
+            "decoder.blocks.2.upsampler.$1",
+        ),
+        // 2 -> 1
+        (
             r"first_stage_model\.decoder\.up\.2\.block\.0\.(.*)",
             "decoder.blocks.1.res1.$1",
         ),
@@ -119,6 +128,11 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             "decoder.blocks.1.res3.$1",
         ),
         (
+            r"first_stage_model\.decoder\.up\.2\.upsample\.conv\.(.*)",
+            "decoder.blocks.1.upsampler.$1",
+        ),
+        // 3 -> 0 
+        (
             r"first_stage_model\.decoder\.up\.3\.block\.0\.(.*)",
             "decoder.blocks.0.res1.$1",
         ),
@@ -129,6 +143,18 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
         (
             r"first_stage_model\.decoder\.up\.3\.block\.2\.(.*)",
             "decoder.blocks.0.res3.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.3\.upsample\.conv\.(.*)",
+            "decoder.blocks.0.upsampler.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.norm_out.weight",
+            "decoder.norm_out.gamma"
+        ),
+        (
+            r"first_stage_model\.decoder\.norm_out.bias",
+            "decoder.norm_out.beta"
         ),
         // fix up weights
         (
@@ -142,6 +168,10 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
         (
             r"decoder\.mid\.block_(\d+)\.norm(\d+)\.bias",
             "decoder.mid.block_$1.norm$2.beta",
+        ),
+        (
+            r"decoder\.mid\.block_(\d+)\.norm(\d+)\.weight",
+            "decoder.mid.block_$1.norm$2.gamma",
         ),
         // autoencoder: decoder.mid
         (
@@ -164,6 +194,71 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
             r"first_stage_model\.decoder\.mid\.attn_1\.(q|k|v|proj_out)",
             "decoder.mid.attn.$1",
         ),
+
+        // encoder
+        (r"first_stage_model\.encoder\.conv_in", "encoder.conv_in"),
+        (r"first_stage_model\.encoder\.conv_out", "encoder.conv_out"),
+
+        (
+            r"first_stage_model\.encoder\.down\.(\d+)\.block\.0\.(.*)",
+            "encoder.blocks.$1.res1.$2",
+        ),
+        (
+            r"first_stage_model\.encoder\.down\.(\d+)\.block\.1\.(.*)",
+            "encoder.blocks.$1.res2.$2",
+        ),
+        (
+            r"first_stage_model\.encoder\.down\.(\d+)\.downsample\.conv\.(.*)",
+            "encoder.blocks.$1.downsampler.conv.$2",
+        ),
+        
+        // encoder mid
+        (
+            r"first_stage_model\.encoder\.mid\.block_(1|2)\.(.*)",
+            "encoder.mid.block_$1.$2",
+        ),
+        (
+            r"first_stage_model\.encoder\.mid\.block_(1|2)\.(.*)",
+            "encoder.mid.block_$1.$2",
+        ),
+        (
+            r"first_stage_model\.encoder\.mid\.attn_1\.norm\.bias",
+            "encoder.mid.attn.norm.beta",
+        ),
+        (
+            r"first_stage_model\.encoder\.mid\.attn_1\.norm\.weight",
+            "encoder.mid.attn.norm.gamma",
+        ),
+        (
+            r"first_stage_model\.encoder\.mid\.attn_1\.(q|k|v|proj_out)",
+            "encoder.mid.attn.$1",
+        ),
+                (
+            r"first_stage_model\.encoder\.norm_out.weight",
+            "encoder.norm_out.gamma"
+        ),
+        (
+            r"first_stage_model\.encoder\.norm_out.bias",
+            "encoder.norm_out.beta"
+        ),
+        // fix up weights
+        (
+            r"encoder\.blocks\.(\d+)\.res(\d+).norm(\d+)\.weight",
+            "encoder.blocks.$1.res$2.norm$3.gamma",
+        ),
+        (
+            r"encoder\.blocks\.(\d+)\.res(\d+).norm(\d+)\.bias",
+            "encoder.blocks.$1.res$2.norm$3.beta",
+        ),
+        (
+            r"encoder\.mid\.block_(\d+)\.norm(\d+)\.bias",
+            "encoder.mid.block_$1.norm$2.beta",
+        ),
+        (
+            r"encoder\.mid\.block_(\d+)\.norm(\d+)\.weight",
+            "encoder.mid.block_$1.norm$2.gamma",
+        ),
+
     ]
 }
 

@@ -19,7 +19,8 @@ impl AutoencoderConfig {
     /// Initializes a Autoencoder model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> Autoencoder<B> {
         let encoder =
-            EncoderConfig::new(vec![(128, 128), (128, 256), (256, 512), (512, 512)], 32, 8)
+            EncoderConfig::new(vec![(128, 128), (128, 256), (256, 512), (512, 512)], 
+            32, 8)
                 .init(device);
         let decoder = DecoderConfig::new(vec![(512, 512), (512, 512), (512, 256), (256, 128)], 32)
             .init(device); // weird reversed
@@ -77,7 +78,7 @@ impl EncoderConfig {
             .first()
             .map(|f| f.1)
             .expect("Channels must not be empty.");
-        let n_expanded_channels_final = self.channels.first().unwrap().0;
+        let n_expanded_channels_final = self.channels.last().unwrap().0; // CHECK: OK?? was channels.first()
 
         let conv_in = Conv2dConfig::new([3, n_expanded_channels_initial], [3, 3])
             .with_padding(PaddingConfig2d::Explicit(1, 1))
