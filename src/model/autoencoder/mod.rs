@@ -22,7 +22,7 @@ impl AutoencoderConfig {
             EncoderConfig::new(vec![(128, 128), (128, 256), (256, 512), (512, 512)], 32, 8)
                 .init(device);
         let decoder = DecoderConfig::new(vec![(512, 512), (512, 512), (512, 256), (256, 128)], 32)
-            .init(device);
+            .init(device); // weird reversed
         let quant_conv = Conv2dConfig::new([8, 8], [1, 1]).init(device);
         let post_quant_conv = Conv2dConfig::new([4, 4], [1, 1]).init(device);
 

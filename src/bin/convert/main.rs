@@ -43,6 +43,7 @@ fn convert_safetensor_to_model<B: Backend>(
             errors,
         }) => {
             println!("applied {:#?}", applied);
+            println!("decoder----");
             println!("missing: {:#?}", missing);
             //println!("unused: {:#?}",unused);
             println!("errors: {:#?}", errors);
@@ -77,6 +78,72 @@ fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
         // autoencoder: first_stage_model
         (r"first_stage_model\.post_quant_conv", "post_quant_conv"),
         (r"first_stage_model\.quant_conv", "quant_conv"),
+        // autoencoder: decoder
+        (r"first_stage_model\.decoder\.conv_in", "decoder.conv_in"),
+        (r"first_stage_model\.decoder\.conv_out", "decoder.conv_out"),
+        // autoencoder: decoder.blocks.0.res1.conv2.weight reversed and 1-indexed :-(
+        (
+            r"first_stage_model\.decoder\.up\.0\.block\.0\.(.*)",
+            "decoder.blocks.3.res1.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.0\.block\.1\.(.*)",
+            "decoder.blocks.3.res2.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.0\.block\.2\.(.*)",
+            "decoder.blocks.3.res3.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.1\.block\.0\.(.*)",
+            "decoder.blocks.2.res1.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.1\.block\.1\.(.*)",
+            "decoder.blocks.2.res2.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.1\.block\.2\.(.*)",
+            "decoder.blocks.2.res3.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.2\.block\.0\.(.*)",
+            "decoder.blocks.1.res1.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.2\.block\.1\.(.*)",
+            "decoder.blocks.1.res2.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.2\.block\.2\.(.*)",
+            "decoder.blocks.1.res3.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.3\.block\.0\.(.*)",
+            "decoder.blocks.0.res1.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.3\.block\.1\.(.*)",
+            "decoder.blocks.0.res2.$1",
+        ),
+        (
+            r"first_stage_model\.decoder\.up\.3\.block\.2\.(.*)",
+            "decoder.blocks.0.res3.$1",
+        ),
+        // fix up weights
+        (
+            r"decoder\.blocks\.(\d+)\.res(\d+).norm(\d+)\.weight",
+            "decoder.blocks.$1.res$2.norm$3.gamma",
+        ),
+        (
+            r"decoder\.blocks\.(\d+)\.res(\d+).norm(\d+)\.bias",
+            "decoder.blocks.$1.res$2.norm$3.beta",
+        ),
+        (
+            r"decoder\.mid\.block_(\d+)\.norm(\d+)\.bias",
+            "decoder.mid.block_$1.norm$2.beta",
+        ),
+        // autoencoder: decoder.mid
         (
             r"first_stage_model\.decoder\.mid\.block_(1|2)\.(.*)",
             "decoder.mid.block_$1.$2",
