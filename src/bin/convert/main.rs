@@ -13,6 +13,7 @@ use burn_store::{ApplyResult, PyTorchToBurnAdapter};
 use stablediffusion::model::autoencoder::AutoencoderConfig;
 use stablediffusion::model::clip::CLIPConfig;
 use stablediffusion::model::stablediffusion::StableDiffusionConfig;
+use stablediffusion::model::unet::UNetConfig;
 
 fn convert_safetensor_to_model<B: Backend>(
     input_file: &str,
@@ -24,8 +25,10 @@ fn convert_safetensor_to_model<B: Backend>(
     //let clip_config = CLIPConfig::new(49408, 768, 12, 77, 12);
     //let mut model = clip_config.init::<B>(device);
 
-    let autoencoder_config = AutoencoderConfig::new();
-    let mut model = autoencoder_config.init::<B>(device);
+    //let autoencoder_config = AutoencoderConfig::new();
+    //let mut model = autoencoder_config.init::<B>(device);
+    let unet_config = UNetConfig::new();
+    let mut model = unet_config.init::<B>(device);
     let tensor_path = PathBuf::from(input_file);
     let mut store = build_store(&tensor_path);
 
@@ -42,16 +45,17 @@ fn convert_safetensor_to_model<B: Backend>(
             unused,
             errors,
         }) => {
-            println!("applied {:#?}", applied);
             println!("decoder----");
             println!("missing: {:#?}", missing);
             //println!("unused: {:#?}",unused);
             println!("errors: {:#?}", errors);
+            println!("applied {:#?}", applied);
         }
         Err(e) => {
             println!("{:#?}", e);
         }
     }
+    /*
     println!("Saving burnpack...");
     let mut store = BurnpackStore::from_file(&output_file)
         .overwrite(true)
@@ -60,12 +64,13 @@ fn convert_safetensor_to_model<B: Backend>(
         .metadata("version", env!("CARGO_PKG_VERSION"))
         .metadata("author", "Burn Example");
     model.save_into(&mut store).expect("Failed to save model");
+    */
     Ok(())
 }
 
 fn build_store(path: &Path) -> SafetensorsStore {
     let mut store = SafetensorsStore::from_file(path);
-    for &(from, to) in key_remap_rules_autoencoder() {
+    for &(from, to) in key_remap_rules_unet() {
         store = store.with_key_remapping(from, to);
     }
     store
@@ -73,6 +78,107 @@ fn build_store(path: &Path) -> SafetensorsStore {
         .allow_partial(true)
         .validate(true)
 }
+fn key_remap_rules_unet() -> &'static [(&'static str, &'static str)] {
+    &[
+        (r"model\.diffusion_model\.time_embed.0", "lin1_time_embed"),
+        (r"model\.diffusion_model\.time_embed.2", "lin2_time_embed"),
+        (r"model\.diffusion_model\.out.0.weight", "norm_out.gamma"),
+        (r"model\.diffusion_model\.out.0.bias", "norm_out.beta"),
+        (r"model\.diffusion_model\.out.2", "conv_out"),
+        // input blocks
+        (
+            r"model\.diffusion_model\.input_blocks\.0\.0",
+            "input_blocks.conv",
+        ),
+        //(r"model\.diffusion_model\.input_blocks\.1","input_blocks.rt1"),
+        //(r"model\.diffusion_model\.input_blocks\.1","input_blocks.rt1"),
+
+        //(r"model\.diffusion_model\.input_blocks\.2","input_blocks.rt2"),
+        //(r"model\.diffusion_model\.input_blocks\.3\.0","input_blocks.d1"),
+        // resblock 1.0 -> res
+        //model.diffusion_model.input_blocks.1.0.in_layers.0.bias
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.0\.in_layers\.0\.weight",
+            "input_blocks.rt1.res.norm_in.gamma",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.0\.in_layers\.0\.bias",
+            "input_blocks.rt1.res.norm_in.beta",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.0\.in_layers\.2",
+            "input_blocks.rt1.res.conv_in",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.0\.emb_layers\.1\.(.*)",
+            "input_blocks.rt1.res.lin_embed.$1",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.0\.out_layers\.0\.weight",
+            "input_blocks.rt1.res.norm_out.gamma",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.0\.out_layers\.0\.bias",
+            "input_blocks.rt1.res.norm_out.beta",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.0\.out_layers\.3",
+            "input_blocks.rt1.res.conv_out",
+        ),
+        //spatial transformer -> transformer
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.norm\.weight",
+            "input_blocks.rt1.transformer.norm.gamma",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.norm\.bias",
+            "input_blocks.rt1.transformer.norm.beta",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.proj_in",
+            "input_blocks.rt1.transformer.proj_in",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.proj_out",
+            "input_blocks.rt1.transformer.proj_out",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.transformer_blocks\.0\.norm(\d+).weight",
+            "input_blocks.rt1.transformer.transformer.norm$1.gamma",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.transformer_blocks\.0\.norm(\d+).bias",
+            "input_blocks.rt1.transformer.transformer.norm$1.beta",
+        ),
+        // cross attention
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.transformer_blocks\.0\.attn(\d+)\.to_q",
+            "input_blocks.rt1.transformer.transformer.attn$1.query",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.transformer_blocks\.0\.attn(\d+)\.to_k",
+            "input_blocks.rt1.transformer.transformer.attn$1.key",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.transformer_blocks\.0\.attn(\d+)\.to_v",
+            "input_blocks.rt1.transformer.transformer.attn$1.value",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.transformer_blocks\.0\.attn(\d+)\.to_out\.0",
+            "input_blocks.rt1.transformer.transformer.attn$1.out",
+        ),
+        // feed forward
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.transformer_blocks\.0\.ff\.net.0.proj",
+            "input_blocks.rt1.transformer.transformer.mlp.geglu.proj",
+        ),
+        (
+            r"model\.diffusion_model\.input_blocks\.1\.1\.transformer_blocks\.0\.ff\.net.2",
+            "input_blocks.rt1.transformer.transformer.mlp.lin",
+        ),
+    ]
+}
+
 fn key_remap_rules_autoencoder() -> &'static [(&'static str, &'static str)] {
     &[
         // autoencoder: first_stage_model
