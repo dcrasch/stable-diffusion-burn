@@ -1,13 +1,13 @@
-use stablediffusion::{
-    model::stablediffusion::{load::load_stable_diffusion, *},
-    tokenizer::SimpleTokenizer,
-};
+use std::{error::Error, path::PathBuf, process};
 
-use burn::{
-    config::Config,
-    module::{Module, Param},
-    nn,
-    tensor::{Tensor, backend::Backend},
+use burn::module::Module;
+use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
+use burn::store::{BurnpackStore, ModuleSnapshot, ApplyResult};
+use burn::tensor::backend::Backend;
+
+use stablediffusion::{
+    model::stablediffusion::{StableDiffusion, StableDiffusionConfig},
+    tokenizer::SimpleTokenizer,
 };
 
 cfg_if::cfg_if! {
@@ -15,36 +15,64 @@ cfg_if::cfg_if! {
         use burn::backend::wgpu::{Wgpu, WgpuDevice};
     }
     else if #[cfg(feature = "rocm-backend")] {
-       use burn::backend::rocm::{Rocm, RocmDevice};
-    } else {
-          use burn_tch::{LibTorch, LibTorchDevice};
+        use burn::backend::rocm::{Rocm, RocmDevice};
+    } else if #[cfg(feature = "torch-backend")]{
+        use burn::backend::torch::{LibTorch,LibTorchDevice};
+    }
+    else {
+        use burn::backend::ndarray::{NdArray, NdArrayDevice};
     }
 }
 
-use std::env;
-use std::io;
-use std::process;
+fn load_stable_diffusion_model_store<B: Backend>(
+    filename: &str,
+    device: &B::Device,
+) -> Result<StableDiffusion<B>, Box<dyn Error>> {
+    let model_config = StableDiffusionConfig::new(1000);
+    let mut model = model_config.init::<B>(device);
 
-use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
+    let tensor_path = PathBuf::from(filename);
+
+    let mut store = BurnpackStore::from_file(tensor_path);
+    println!("Loading model");
+    let result = model.load_from(&mut store);
+    match result {
+        Ok(ApplyResult {
+            applied,
+            skipped,
+            missing,
+            unused,
+            errors,
+        }) => {
+            println!("missing: {:#?}", missing);
+            //println!("unused: {:#?}",unused);
+            println!("errors: {:#?}", errors);
+            //println!("applied {:#?}", applied);
+        }
+        Err(e) => {
+            return Err(Box::new(e));
+        }
+    }
+    Ok(model)
+}
 
 fn load_stable_diffusion_model_file<B: Backend>(
     filename: &str,
     device: &B::Device,
 ) -> Result<StableDiffusion<B>, record::RecorderError> {
-    NamedMpkFileRecorder::<FullPrecisionSettings>::new()
+    let record = NamedMpkFileRecorder::<FullPrecisionSettings>::default()
         .load(filename.into(), device)
-        .map(|record| {
-            StableDiffusionConfig::new()
-                .init(device)
-                .load_record(record)
-        })
+        .expect("Should decode state successfully");
+    Ok(StableDiffusionConfig::new(1000)
+        .init(device)
+        .load_record(record))
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 7 && args.len() != 8 {
         eprintln!(
-            "Usage: {} <model_type(burn or dump)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]",
+            "Usage: {} <model_type(burn or store)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]",
             args[0]
         );
         process::exit(1);
@@ -63,22 +91,21 @@ fn main() {
     let prompt = &args[5];
     let output_image_name = &args[6];
 
-    // Optional device parameter
-    let device_arg = if args.len() == 8 {
-        Some(&args[7])
-    } else {
-        None
-    };
-
     cfg_if::cfg_if! {
         if #[cfg(feature = "wgpu-backend")] {
-              type Backend = Wgpu;
-              let device = WgpuDevice::default();
-    } else if #[cfg(feature = "rocm-backend")] {
-          type Backend = Rocm;
-              let device = RocmDevice::default();
-        } else {
-        type Backend = LibTorch<f32>;
+            type Backend = Wgpu;
+            let device = WgpuDevice::default();
+        } else if #[cfg(feature = "rocm-backend")] {
+            type Backend = Rocm;
+            let device = RocmDevice::default();
+        } else if #[cfg(feature = "torch-backend")] {
+            type Backend = LibTorch<f32>;
+            // Optional device parameter
+            let device_arg = if args.len() == 8 {
+                Some(&args[7])
+            } else {
+                None
+            };
             let device = if let Some(dev_str) = device_arg {
                 match dev_str.to_lowercase().as_str() {
                     "cpu" => LibTorchDevice::Cpu,
@@ -96,21 +123,23 @@ fn main() {
                 LibTorchDevice::Cuda(0)
             };
         }
+        else {
+            type Backend = NdArray;
+            let device = NdArrayDevice::default();
+        }
     }
 
     println!("Loading tokenizer...");
     let tokenizer = SimpleTokenizer::new().unwrap();
     println!("Loading model...");
-    let sd: StableDiffusion<Backend> = if model_type == "burn" {
-        load_stable_diffusion_model_file(model_name, &device).unwrap_or_else(|err| {
-            eprintln!("Error loading model: {}", err);
-            process::exit(1);
-        })
-    } else {
-        load_stable_diffusion(model_name, &device).unwrap_or_else(|err| {
-            eprintln!("Error loading model dump: {}", err);
-            process::exit(1);
-        })
+    let sd: StableDiffusion<Backend> = match model_type.as_str() {
+        "burn" => load_stable_diffusion_model_file(model_name, &device).unwrap_or_else(|err| {
+            panic!("Error loading model: {}", err);
+        }),
+        "store" => load_stable_diffusion_model_store(model_name, &device).unwrap_or_else(|err| {
+            panic!("Error loading model from store: {}", err);
+        }),
+        _ => panic!("Unknown model"),
     };
 
     let unconditional_context = sd.unconditional_context(&tokenizer);
@@ -136,23 +165,5 @@ fn save_images(images: &Vec<Vec<u8>>, basepath: &str, width: u32, height: u32) -
         let path = format!("{}{}.png", basepath, index);
         image::save_buffer(path, &img_data[..], width, height, Rgb8)?;
     }
-
     Ok(())
-}
-
-// save red test image
-fn save_test_image() -> ImageResult<()> {
-    let width = 256;
-    let height = 256;
-    let raw: Vec<_> = (0..width * height)
-        .into_iter()
-        .flat_map(|i| {
-            let row = i / width;
-            let red = (255.0 * row as f64 / height as f64) as u8;
-
-            [red, 0, 0]
-        })
-        .collect();
-
-    image::save_buffer("red.png", &raw[..], width, height, Rgb8)
 }

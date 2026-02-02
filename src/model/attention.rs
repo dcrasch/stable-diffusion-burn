@@ -1,6 +1,6 @@
-use burn::tensor::{Tensor, activation::softmax, backend::Backend};
-
 use std::f32::NEG_INFINITY;
+
+use burn::tensor::{Tensor, activation::softmax, backend::Backend};
 
 pub fn qkv_attention<B: Backend>(
     q: Tensor<B, 3>,

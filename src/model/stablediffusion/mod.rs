@@ -1,15 +1,8 @@
-pub mod load;
-
 use burn::{
     config::Config,
     module::{Module, Param},
-    tensor::cast::ToElement,
-    tensor::{BasicOps, Distribution, Float, Int, Tensor, backend::Backend},
+    tensor::{Distribution, Int, Tensor, backend::Backend, cast::ToElement},
 };
-
-use num_traits::ToPrimitive;
-
-//use crate::backend::Backend as MyBackend;
 
 use super::autoencoder::{Autoencoder, AutoencoderConfig};
 use super::clip::{CLIP, CLIPConfig};
@@ -17,20 +10,29 @@ use super::unet::{UNet, UNetConfig};
 use crate::tokenizer::SimpleTokenizer;
 
 #[derive(Config, Debug)]
-pub struct StableDiffusionConfig {}
+pub struct StableDiffusionConfig {
+    train_steps: usize,
+}
+
+impl Default for StableDiffusionConfig {
+    fn default() -> Self {
+        StableDiffusionConfig { train_steps: 1000 }
+    }
+}
 
 impl StableDiffusionConfig {
+    // Initialize a Stable Diffusion Model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> StableDiffusion<B> {
-        let n_steps = 1000;
-        let alpha_cumulative_products =
-            Param::from_tensor(offset_cosine_schedule_cumprod::<B>(n_steps as i64, device));
+        let alpha_cumulative_products = Param::from_tensor(offset_cosine_schedule_cumprod::<B>(
+            self.train_steps as i64,
+            device,
+        ));
 
         let autoencoder = AutoencoderConfig::new().init(device);
         let diffusion = UNetConfig::new().init(device);
         let clip = CLIPConfig::new(49408, 768, 12, 77, 12).init(device);
 
         StableDiffusion {
-            n_steps,
             alpha_cumulative_products,
             autoencoder,
             diffusion,
@@ -41,7 +43,6 @@ impl StableDiffusionConfig {
 
 #[derive(Module, Debug)]
 pub struct StableDiffusion<B: Backend> {
-    n_steps: usize,
     alpha_cumulative_products: Param<Tensor<B, 1>>,
     autoencoder: Autoencoder<B>,
     diffusion: UNet<B>,
@@ -56,7 +57,7 @@ impl<B: Backend> StableDiffusion<B> {
         unconditional_guidance_scale: f64,
         n_steps: usize,
     ) -> Vec<Vec<u8>> {
-        let [n_batch, _, _] = context.dims();
+        let [_n_batch, _, _] = context.dims();
 
         let latent = self.sample_latent(
             context,
@@ -108,8 +109,8 @@ impl<B: Backend> StableDiffusion<B> {
         n_steps: usize,
     ) -> Tensor<B, 4> {
         let device = context.device();
-
-        let step_size = self.n_steps / n_steps;
+        let train_timesteps = 1000; // get from config n_steps
+        let step_size = train_timesteps / n_steps;
 
         let [n_batches, _, _] = context.dims();
 
@@ -125,7 +126,7 @@ impl<B: Backend> StableDiffusion<B> {
 
         let mut latent = gen_noise();
 
-        for t in (0..self.n_steps).rev().step_by(step_size) {
+        for t in (0..train_timesteps).rev().step_by(step_size) {
             let current_alpha: f64 = self
                 .alpha_cumulative_products
                 .val()
@@ -182,16 +183,6 @@ impl<B: Backend> StableDiffusion<B> {
         );
 
         let conditional_latent = self.diffusion.forward(latent, timestep, context);
-
-        /*let latent = self.diffusion.forward(
-            latent.repeat(0, 2),
-            timestep.repeat(0, 2),
-            Tensor::cat(vec![unconditional_context.unsqueeze::<3>(), context], 0)
-        );
-
-        let unconditional_latent = latent.clone().slice([0..n_batch]);
-        let conditional_latent = latent.slice([n_batch..2 * n_batch]);*/
-
         unconditional_latent.clone()
             + (conditional_latent - unconditional_latent) * unconditional_guidance_scale
     }
@@ -212,15 +203,6 @@ impl<B: Backend> StableDiffusion<B> {
         self.clip
             .forward(Tensor::<B, 1, Int>::from_ints(&tokenized[..], device).unsqueeze())
     }
-}
-
-use std::f64::consts::PI;
-
-fn cosine_schedule<B: Backend>(n_steps: i64, device: &B::Device) -> Tensor<B, 1> {
-    Tensor::arange(1..n_steps + 1, device)
-        .float()
-        .mul_scalar(PI * 0.5 / n_steps as f64)
-        .cos()
 }
 
 fn offset_cosine_schedule<B: Backend>(n_steps: i64, device: &B::Device) -> Tensor<B, 1> {
