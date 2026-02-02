@@ -4,11 +4,11 @@ use burn::{
     nn::{
         PaddingConfig2d,
         conv::{Conv2d, Conv2dConfig},
+        norm::{GroupNorm, GroupNormConfig},
     },
     tensor::{Tensor, backend::Backend},
 };
 
-use super::groupnorm::*;
 use super::silu::*;
 use crate::backend::qkv_attention;
 

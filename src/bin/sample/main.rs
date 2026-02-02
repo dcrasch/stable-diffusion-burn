@@ -2,7 +2,7 @@ use std::{error::Error, path::PathBuf, process};
 
 use burn::module::Module;
 use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
-use burn::store::{BurnpackStore, ModuleSnapshot};
+use burn::store::{BurnpackStore, ModuleSnapshot, ApplyResult};
 use burn::tensor::backend::Backend;
 
 use stablediffusion::{
@@ -36,7 +36,23 @@ fn load_stable_diffusion_model_store<B: Backend>(
     let mut store = BurnpackStore::from_file(tensor_path);
     println!("Loading model");
     let result = model.load_from(&mut store);
-    println!("{:?}", result);
+    match result {
+        Ok(ApplyResult {
+            applied,
+            skipped,
+            missing,
+            unused,
+            errors,
+        }) => {
+            println!("missing: {:#?}", missing);
+            //println!("unused: {:#?}",unused);
+            println!("errors: {:#?}", errors);
+            //println!("applied {:#?}", applied);
+        }
+        Err(e) => {
+            println!("{:#?}", e);
+        }
+    }
     Ok(model)
 }
 
@@ -56,7 +72,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 7 && args.len() != 8 {
         eprintln!(
-            "Usage: {} <model_type(burn or safetensor)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]",
+            "Usage: {} <model_type(burn or store)> <model_name> <unconditional_guidance_scale> <n_diffusion_steps> <prompt> <output_image_name> [device(cuda, mps, cpu)]",
             args[0]
         );
         process::exit(1);
@@ -120,11 +136,9 @@ fn main() {
         "burn" => load_stable_diffusion_model_file(model_name, &device).unwrap_or_else(|err| {
             panic!("Error loading model: {}", err);
         }),
-        "safetensor" => {
-            load_stable_diffusion_model_store(model_name, &device).unwrap_or_else(|err| {
-                panic!("Error loading model from store: {}", err);
-            })
-        }
+        "store" => load_stable_diffusion_model_store(model_name, &device).unwrap_or_else(|err| {
+            panic!("Error loading model from store: {}", err);
+        }),
         _ => panic!("Unknown model"),
     };
 

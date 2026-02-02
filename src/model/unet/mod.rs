@@ -2,14 +2,14 @@ use burn::{
     config::Config,
     module::Module,
     nn::{
-        self, Gelu, PaddingConfig2d,
+        Gelu, GroupNorm, GroupNormConfig, LayerNorm, LayerNormConfig, Linear, LinearConfig,
+        PaddingConfig2d,
         conv::{Conv2d, Conv2dConfig},
     },
     tensor::{Int, Tensor, backend::Backend},
 };
 
 use super::attention::qkv_attention;
-use super::groupnorm::*;
 use super::silu::*;
 
 fn timestep_embedding<B: Backend>(
@@ -31,9 +31,9 @@ pub struct UNetConfig {}
 impl UNetConfig {
     /// Initializes a Autoencoder model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> UNet<B> {
-        let lin1_time_embed = nn::LinearConfig::new(320, 1280).init(device);
+        let lin1_time_embed = LinearConfig::new(320, 1280).init(device);
         let silu_time_embed = SILU::new();
-        let lin2_time_embed = nn::LinearConfig::new(1280, 1280).init(device);
+        let lin2_time_embed = LinearConfig::new(1280, 1280).init(device);
 
         let input_blocks = UNetInputBlocks {
             conv: Conv2dConfig::new([4, 320], [3, 3])
@@ -69,7 +69,7 @@ impl UNetConfig {
             rt7: ResTransformerConfig::new(640, 1280, 320, 768, 8).init(device),
         };
 
-        let norm_out = GroupNormConfig::new(32, 320).init(device);
+        let norm_out = GroupNormConfig::new(32, 320).with_affine(true).init(device);
         let silu_out = SILU::new();
         let conv_out = Conv2dConfig::new([320, 4], [3, 3])
             .with_padding(PaddingConfig2d::Explicit(1, 1))
@@ -91,9 +91,9 @@ impl UNetConfig {
 
 #[derive(Module, Debug)]
 pub struct UNet<B: Backend> {
-    lin1_time_embed: nn::Linear<B>,
+    lin1_time_embed: Linear<B>,
     silu_time_embed: SILU,
-    lin2_time_embed: nn::Linear<B>,
+    lin2_time_embed: Linear<B>,
     input_blocks: UNetInputBlocks<B>,
     middle_block: ResTransformerRes<B>,
     output_blocks: UNetOutputBlocks<B>,
@@ -487,13 +487,13 @@ pub struct TransformerBlockConfig {
 
 impl TransformerBlockConfig {
     fn init<B: Backend>(&self, device: &B::Device) -> TransformerBlock<B> {
-        let norm1 = nn::LayerNormConfig::new(self.n_state).init(device);
+        let norm1 = LayerNormConfig::new(self.n_state).init(device);
         let attn1 =
             MultiHeadAttentionConfig::new(self.n_state, self.n_state, self.n_head).init(device);
-        let norm2 = nn::LayerNormConfig::new(self.n_state).init(device);
+        let norm2 = LayerNormConfig::new(self.n_state).init(device);
         let attn2 = MultiHeadAttentionConfig::new(self.n_state, self.n_context_state, self.n_head)
             .init(device);
-        let norm3 = nn::LayerNormConfig::new(self.n_state).init(device);
+        let norm3 = LayerNormConfig::new(self.n_state).init(device);
         let mlp = MLPConfig::new(self.n_state, 4).init(device);
 
         TransformerBlock {
@@ -509,11 +509,11 @@ impl TransformerBlockConfig {
 
 #[derive(Module, Debug)]
 pub struct TransformerBlock<B: Backend> {
-    norm1: nn::LayerNorm<B>,
+    norm1: LayerNorm<B>,
     attn1: MultiHeadAttention<B>,
-    norm2: nn::LayerNorm<B>,
+    norm2: LayerNorm<B>,
     attn2: MultiHeadAttention<B>,
-    norm3: nn::LayerNorm<B>,
+    norm3: LayerNorm<B>,
     mlp: MLP<B>,
 }
 
@@ -535,7 +535,7 @@ impl MLPConfig {
     pub fn init<B: Backend>(&self, device: &B::Device) -> MLP<B> {
         let n_state_hidden = self.n_state * self.mult;
         let geglu = GEGLUConfig::new(self.n_state, n_state_hidden).init(device);
-        let lin = nn::LinearConfig::new(n_state_hidden, self.n_state).init(device);
+        let lin = LinearConfig::new(n_state_hidden, self.n_state).init(device);
 
         MLP { geglu, lin }
     }
@@ -544,7 +544,7 @@ impl MLPConfig {
 #[derive(Module, Debug)]
 pub struct MLP<B: Backend> {
     geglu: GEGLU<B>,
-    lin: nn::Linear<B>,
+    lin: Linear<B>,
 }
 
 impl<B: Backend> MLP<B> {
@@ -561,7 +561,7 @@ pub struct GEGLUConfig {
 
 impl GEGLUConfig {
     fn init<B: Backend>(&self, device: &B::Device) -> GEGLU<B> {
-        let proj = nn::LinearConfig::new(self.n_state_in, 2 * self.n_state_out).init(device);
+        let proj = LinearConfig::new(self.n_state_in, 2 * self.n_state_out).init(device);
         let gelu = Gelu::new();
 
         GEGLU { proj, gelu }
@@ -570,7 +570,7 @@ impl GEGLUConfig {
 
 #[derive(Module, Debug)]
 pub struct GEGLU<B: Backend> {
-    proj: nn::Linear<B>,
+    proj: Linear<B>,
     gelu: Gelu,
 }
 
@@ -607,16 +607,16 @@ impl MultiHeadAttentionConfig {
         );
 
         let n_head = self.n_head;
-        let query = nn::LinearConfig::new(self.n_state, self.n_state)
+        let query = LinearConfig::new(self.n_state, self.n_state)
             .with_bias(false)
             .init(device);
-        let key = nn::LinearConfig::new(self.n_context_state, self.n_state)
+        let key = LinearConfig::new(self.n_context_state, self.n_state)
             .with_bias(false)
             .init(device);
-        let value = nn::LinearConfig::new(self.n_context_state, self.n_state)
+        let value = LinearConfig::new(self.n_context_state, self.n_state)
             .with_bias(false)
             .init(device);
-        let out = nn::LinearConfig::new(self.n_state, self.n_state).init(device);
+        let out = LinearConfig::new(self.n_state, self.n_state).init(device);
 
         MultiHeadAttention {
             n_head,
@@ -631,10 +631,10 @@ impl MultiHeadAttentionConfig {
 #[derive(Module, Debug)]
 pub struct MultiHeadAttention<B: Backend> {
     n_head: usize,
-    query: nn::Linear<B>,
-    key: nn::Linear<B>,
-    value: nn::Linear<B>,
-    out: nn::Linear<B>,
+    query: Linear<B>,
+    key: Linear<B>,
+    value: Linear<B>,
+    out: Linear<B>,
 }
 
 impl<B: Backend> MultiHeadAttention<B> {
@@ -667,8 +667,7 @@ impl ResBlockConfig {
             .init(device);
 
         let silu_embed = SILU::new();
-        let lin_embed =
-            nn::LinearConfig::new(self.n_channels_embed, self.n_channels_out).init(device);
+        let lin_embed = LinearConfig::new(self.n_channels_embed, self.n_channels_out).init(device);
 
         let norm_out = GroupNormConfig::new(32, self.n_channels_out).init(device);
         let silu_out = SILU::new();
@@ -702,7 +701,7 @@ pub struct ResBlock<B: Backend> {
     silu_in: SILU,
     conv_in: Conv2d<B>,
     silu_embed: SILU,
-    lin_embed: nn::Linear<B>,
+    lin_embed: Linear<B>,
     norm_out: GroupNorm<B>,
     silu_out: SILU,
     conv_out: Conv2d<B>,

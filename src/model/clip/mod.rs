@@ -1,7 +1,7 @@
 use burn::{
     config::Config,
     module::{Module, Param},
-    nn,
+    nn::{Embedding, EmbeddingConfig, LayerNorm, LayerNormConfig, Linear, LinearConfig},
     tensor::{Distribution, Int, Tensor, activation::sigmoid, backend::Backend},
 };
 
@@ -19,7 +19,7 @@ pub struct CLIPConfig {
 impl CLIPConfig {
     /// Initializes a CLIP model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> CLIP<B> {
-        let token_embedding = nn::EmbeddingConfig::new(self.n_vocab, self.n_state).init(device);
+        let token_embedding = EmbeddingConfig::new(self.n_vocab, self.n_state).init(device);
         let position_embedding = Param::from_tensor(Tensor::random(
             [self.n_ctx, self.n_state],
             Distribution::Normal(0.0, 1.0),
@@ -31,7 +31,7 @@ impl CLIPConfig {
                 ResidualDecoderAttentionBlockConfig::new(self.n_state, self.n_head).init(device)
             })
             .collect();
-        let layer_norm = nn::LayerNormConfig::new(self.n_state).init(device);
+        let layer_norm = LayerNormConfig::new(self.n_state).init(device);
 
         CLIP {
             token_embedding,
@@ -44,10 +44,10 @@ impl CLIPConfig {
 
 #[derive(Module, Debug)]
 pub struct CLIP<B: Backend> {
-    token_embedding: nn::Embedding<B>,
+    token_embedding: Embedding<B>,
     position_embedding: Param<Tensor<B, 2>>,
     blocks: Vec<ResidualDecoderAttentionBlock<B>>,
-    layer_norm: nn::LayerNorm<B>,
+    layer_norm: LayerNorm<B>,
 }
 
 impl<B: Backend> CLIP<B> {
@@ -83,10 +83,10 @@ impl ResidualDecoderAttentionBlockConfig {
     /// Initializes a ResidualDecoderAttentionBlock model with default weights
     pub fn init<B: Backend>(&self, device: &B::Device) -> ResidualDecoderAttentionBlock<B> {
         let attn = MultiHeadSelfAttentionConfig::new(self.n_state, self.n_head).init(device);
-        let attn_ln = nn::LayerNormConfig::new(self.n_state).init(device);
+        let attn_ln = LayerNormConfig::new(self.n_state).init(device);
 
         let mlp = MLPConfig::new(self.n_state, 4 * self.n_state).init(device);
-        let mlp_ln = nn::LayerNormConfig::new(self.n_state).init(device);
+        let mlp_ln = LayerNormConfig::new(self.n_state).init(device);
 
         ResidualDecoderAttentionBlock {
             attn,
@@ -100,9 +100,9 @@ impl ResidualDecoderAttentionBlockConfig {
 #[derive(Module, Debug)]
 pub struct ResidualDecoderAttentionBlock<B: Backend> {
     attn: MultiHeadSelfAttention<B>,
-    attn_ln: nn::LayerNorm<B>,
+    attn_ln: LayerNorm<B>,
     mlp: MLP<B>,
-    mlp_ln: nn::LayerNorm<B>,
+    mlp_ln: LayerNorm<B>,
 }
 
 impl<B: Backend> ResidualDecoderAttentionBlock<B> {
@@ -130,10 +130,10 @@ impl MultiHeadSelfAttentionConfig {
         );
 
         let n_head = self.n_head;
-        let query = nn::LinearConfig::new(self.n_state, self.n_state).init(device);
-        let key = nn::LinearConfig::new(self.n_state, self.n_state).init(device);
-        let value = nn::LinearConfig::new(self.n_state, self.n_state).init(device);
-        let out = nn::LinearConfig::new(self.n_state, self.n_state).init(device);
+        let query = LinearConfig::new(self.n_state, self.n_state).init(device);
+        let key = LinearConfig::new(self.n_state, self.n_state).init(device);
+        let value = LinearConfig::new(self.n_state, self.n_state).init(device);
+        let out = LinearConfig::new(self.n_state, self.n_state).init(device);
 
         MultiHeadSelfAttention {
             n_head,
@@ -148,10 +148,10 @@ impl MultiHeadSelfAttentionConfig {
 #[derive(Module, Debug)]
 pub struct MultiHeadSelfAttention<B: Backend> {
     n_head: usize,
-    query: nn::Linear<B>,
-    key: nn::Linear<B>,
-    value: nn::Linear<B>,
-    out: nn::Linear<B>,
+    query: Linear<B>,
+    key: Linear<B>,
+    value: Linear<B>,
+    out: Linear<B>,
 }
 
 impl<B: Backend> MultiHeadSelfAttention<B> {
@@ -183,9 +183,9 @@ pub struct MLPConfig {
 impl MLPConfig {
     /// init MLP with default weights
     fn init<B: Backend>(&self, device: &B::Device) -> MLP<B> {
-        let fc1 = nn::LinearConfig::new(self.input_size, self.hidden_size).init(device);
+        let fc1 = LinearConfig::new(self.input_size, self.hidden_size).init(device);
         let gelu = QuickGELU::new();
-        let fc2 = nn::LinearConfig::new(self.hidden_size, self.input_size).init(device);
+        let fc2 = LinearConfig::new(self.hidden_size, self.input_size).init(device);
 
         MLP { fc1, gelu, fc2 }
     }
@@ -193,9 +193,9 @@ impl MLPConfig {
 
 #[derive(Module, Debug)]
 pub struct MLP<B: Backend> {
-    fc1: nn::Linear<B>,
+    fc1: Linear<B>,
     gelu: QuickGELU,
-    fc2: nn::Linear<B>,
+    fc2: Linear<B>,
 }
 
 impl<B: Backend> MLP<B> {
