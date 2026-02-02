@@ -50,7 +50,7 @@ fn load_stable_diffusion_model_store<B: Backend>(
             //println!("applied {:#?}", applied);
         }
         Err(e) => {
-            println!("{:#?}", e);
+            return Err(Box::new(e));
         }
     }
     Ok(model)

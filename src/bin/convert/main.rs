@@ -45,7 +45,7 @@ fn load_pretrained<B: Backend>(
             //println!("applied {:#?}", applied);
         }
         Err(e) => {
-            println!("{:#?}", e);
+            return Err(Box::new(e));
         }
     }
     Ok(model)
