@@ -40,6 +40,12 @@ impl StableDiffusionConfig {
         }
     }
 }
+pub struct StepInfo {
+    /// Current step (0-indexed)
+    pub step: usize,
+    /// Total number of steps
+    pub total_steps: usize,
+}
 
 #[derive(Module, Debug)]
 pub struct StableDiffusion<B: Backend> {
@@ -50,20 +56,25 @@ pub struct StableDiffusion<B: Backend> {
 }
 
 impl<B: Backend> StableDiffusion<B> {
-    pub fn sample_image(
+    pub fn generate_with_callback<F>(
         &self,
         context: Tensor<B, 3>,
         unconditional_context: Tensor<B, 2>,
         unconditional_guidance_scale: f64,
         n_steps: usize,
-    ) -> Vec<Vec<u8>> {
+        callback: F,
+    ) -> Vec<Vec<u8>>
+    where
+        F: FnMut(StepInfo),
+    {
         let [_n_batch, _, _] = context.dims();
 
-        let latent = self.sample_latent(
+        let latent = self.sample_latent_with_callback(
             context,
             unconditional_context,
             unconditional_guidance_scale,
             n_steps,
+            callback,
         );
         self.latent_to_image(latent)
     }
@@ -101,16 +112,20 @@ impl<B: Backend> StableDiffusion<B> {
             .collect()
     }
 
-    pub fn sample_latent(
+    pub fn sample_latent_with_callback<F>(
         &self,
         context: Tensor<B, 3>,
         unconditional_context: Tensor<B, 2>,
         unconditional_guidance_scale: f64,
-        n_steps: usize,
-    ) -> Tensor<B, 4> {
+        total_steps: usize,
+        mut callback: F,
+    ) -> Tensor<B, 4>
+    where
+        F: FnMut(StepInfo),
+    {
         let device = context.device();
         let train_timesteps = 1000; // get from config n_steps
-        let step_size = train_timesteps / n_steps;
+        let step_size = train_timesteps / total_steps;
 
         let [n_batches, _, _] = context.dims();
 
@@ -125,7 +140,7 @@ impl<B: Backend> StableDiffusion<B> {
         let sigma = 0.0; // Use deterministic diffusion
 
         let mut latent = gen_noise();
-
+        let mut step_idx = 0;
         for t in (0..train_timesteps).rev().step_by(step_size) {
             let current_alpha: f64 = self
                 .alpha_cumulative_products
@@ -160,6 +175,11 @@ impl<B: Backend> StableDiffusion<B> {
 
             let prev_latent = predx0 * prev_alpha.sqrt() + dir_latent + gen_noise() * sigma;
             latent = prev_latent;
+            step_idx += 1;
+            callback(StepInfo {
+                step: step_idx,
+                total_steps,
+            });
         }
 
         latent

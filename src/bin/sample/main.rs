@@ -2,9 +2,10 @@ use std::{error::Error, path::PathBuf, process};
 
 use burn::module::Module;
 use burn::record::{self, FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
-use burn::store::{BurnpackStore, ModuleSnapshot, ApplyResult};
+use burn::store::{ApplyResult, BurnpackStore, ModuleSnapshot};
 use burn::tensor::backend::Backend;
 
+use indicatif::{ProgressBar, ProgressStyle};
 use stablediffusion::{
     model::stablediffusion::{StableDiffusion, StableDiffusionConfig},
     tokenizer::SimpleTokenizer,
@@ -146,16 +147,29 @@ fn main() {
     let context = sd.context(&tokenizer, prompt).unsqueeze::<3>(); //.repeat(0, 2); // generate 2 samples
 
     println!("Sampling image...");
-    let images = sd.sample_image(
+    let pb = ProgressBar::new(100);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}% {msg}")
+            .unwrap()
+            .progress_chars("#>-"),
+    );
+    let images = sd.generate_with_callback(
         context,
         unconditional_context,
         unconditional_guidance_scale,
         n_steps,
+        |info| {
+            let progress = 100 * (info.step + 1) / info.total_steps;
+            pb.set_position(progress as u64);
+            pb.set_message(format!("Step {}/{}", info.step + 1, info.total_steps));
+        },
     );
     save_images(&images, output_image_name, 512, 512).unwrap_or_else(|err| {
         eprintln!("Error saving image: {}", err);
         process::exit(1);
     });
+    pb.finish_and_clear();
 }
 
 use image::{self, ColorType::Rgb8, ImageResult};
