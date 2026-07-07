@@ -80,7 +80,7 @@ impl EncoderConfig {
         let n_expanded_channels_final = self.channels.last().unwrap().0; // CHECK: OK?? was channels.first()
 
         let conv_in = Conv2dConfig::new([3, n_expanded_channels_initial], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
 
         let blocks = self
@@ -97,7 +97,7 @@ impl EncoderConfig {
         let norm_out = GroupNormConfig::new(self.n_group, n_expanded_channels_final).init(device);
         let silu = SILU::new();
         let conv_out = Conv2dConfig::new([n_expanded_channels_final, self.n_channels_out], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
 
         Encoder {
@@ -153,7 +153,7 @@ impl DecoderConfig {
         let n_condensed_channels = self.channels.last().unwrap().1;
 
         let conv_in = Conv2dConfig::new([4, n_expanded_channels], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
         let mid = MidConfig::new(n_expanded_channels).init(device);
 
@@ -170,7 +170,7 @@ impl DecoderConfig {
         let norm_out = GroupNormConfig::new(self.n_group, n_condensed_channels).init(device);
         let silu = SILU::new();
         let conv_out = Conv2dConfig::new([n_condensed_channels, 3], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
 
         Decoder {
@@ -275,7 +275,7 @@ impl DecoderBlockConfig {
         let upsampler = if self.upsample {
             Some(
                 Conv2dConfig::new([self.n_channels_out, self.n_channels_out], [3, 3])
-                    .with_padding(PaddingConfig2d::Explicit(1, 1))
+                    .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
                     .init(device),
             )
         } else {
@@ -346,7 +346,7 @@ impl PaddedConv2dConfig {
 
         let conv = Conv2dConfig::new(self.channels, [self.kernel_size, self.kernel_size])
             .with_stride([self.stride, self.stride])
-            .with_padding(PaddingConfig2d::Explicit(pad_vertical, pad_horizontal))
+            .with_padding(PaddingConfig2d::Explicit(pad_vertical, pad_horizontal,pad_vertical,pad_horizontal))
             .init(device);
 
         let kernel_size = self.kernel_size;
@@ -470,11 +470,11 @@ impl ResnetBlockConfig {
     fn init<B: Backend>(&self, device: &B::Device) -> ResnetBlock<B> {
         let norm1 = GroupNormConfig::new(32, self.in_channels).init(device);
         let conv1 = Conv2dConfig::new([self.in_channels, self.out_channels], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
         let norm2 = GroupNormConfig::new(32, self.out_channels).init(device);
         let conv2 = Conv2dConfig::new([self.out_channels, self.out_channels], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
         let nin_shortcut = if self.in_channels != self.out_channels {
             Some(Conv2dConfig::new([self.in_channels, self.out_channels], [1, 1]).init(device))

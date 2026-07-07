@@ -37,7 +37,7 @@ impl UNetConfig {
 
         let input_blocks = UNetInputBlocks {
             conv: Conv2dConfig::new([4, 320], [3, 3])
-                .with_padding(PaddingConfig2d::Explicit(1, 1))
+                .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
                 .init(device),
             rt1: ResTransformerConfig::new(320, 1280, 320, 768, 8).init(device),
             rt2: ResTransformerConfig::new(320, 1280, 320, 768, 8).init(device),
@@ -72,7 +72,7 @@ impl UNetConfig {
         let norm_out = GroupNormConfig::new(32, 320).with_affine(true).init(device);
         let silu_out = SILU::new();
         let conv_out = Conv2dConfig::new([320, 4], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
 
         UNet {
@@ -372,7 +372,7 @@ pub struct UpsampleConfig {
 impl UpsampleConfig {
     fn init<B: Backend>(&self, device: &B::Device) -> Upsample<B> {
         let conv = Conv2dConfig::new([self.n_channels, self.n_channels], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
 
         Upsample { conv }
@@ -410,7 +410,7 @@ impl DownsampleConfig {
     fn init<B: Backend>(&self, device: &B::Device) -> Conv2d<B> {
         Conv2dConfig::new([self.n_channels, self.n_channels], [3, 3])
             .with_stride([2, 2])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device)
     }
 }
@@ -663,7 +663,7 @@ impl ResBlockConfig {
         let norm_in = GroupNormConfig::new(32, self.n_channels_in).init(device);
         let silu_in = SILU::new();
         let conv_in = Conv2dConfig::new([self.n_channels_in, self.n_channels_out], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
 
         let silu_embed = SILU::new();
@@ -672,7 +672,7 @@ impl ResBlockConfig {
         let norm_out = GroupNormConfig::new(32, self.n_channels_out).init(device);
         let silu_out = SILU::new();
         let conv_out = Conv2dConfig::new([self.n_channels_out, self.n_channels_out], [3, 3])
-            .with_padding(PaddingConfig2d::Explicit(1, 1))
+            .with_padding(PaddingConfig2d::Explicit(1, 1,1,1))
             .init(device);
 
         let skip_connection = if self.n_channels_in != self.n_channels_out {

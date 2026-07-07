@@ -8,9 +8,13 @@
 cargo run --release --features rocm-backend --bin sample burn SDv1-4.mpk 7.5 20 "An ancient mossy stone." img
 ```
 
-This command will generate an image according to the provided prompt, which will be saved as 'img0.png'.
+Download tensors at: ```https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/tree/main```
 
 ![An image of an ancient mossy stone](img0.png)
+
+## Convert mode to burn stone
+
+cargo run --release --features rocm-backend --bin convert v1-5-pruned-emaonly.safetensors v1.5.mpk
 
 ## Get burn with latest/installed version of rocm
 
@@ -37,6 +41,7 @@ Error message when ***no HIP_SUCCESS in the root*** this means the hip version i
 ### Build cubecl with latest cubecl-hip-sys
 
 change the cubecl/crates/cubecl-hip/Cargo.toml
+
 ```
 cubecl-hip-sys = { version = "7.0.5183101" }  to the correct version. ->
 cubecl-hip-sys = { path = "../../../cubecl-hip-sys/crates/cubecl-hip-sys", version = "7.1.52802" }
@@ -46,8 +51,8 @@ cubecl-hip-sys = { path = "../../../cubecl-hip-sys/crates/cubecl-hip-sys", versi
 git clone https://github.com/tracel-ai/cubecl-hip-sys/
 cd cubecl-hip-sys
 ```
-Read the readme! And create a version
 
+Read the readme! And create a version
 
 ### Fix cubecl and example
 
@@ -58,6 +63,7 @@ hip = ["cubecl/hip"]
 ```
 
 examples/gelu/examples/gelu.rs
+
 ```
 #[cfg(feature = "hip")]    
 gelu::launch::<cubecl::hip::HipRuntime>(&Default::default());
@@ -65,7 +71,7 @@ gelu::launch::<cubecl::hip::HipRuntime>(&Default::default());
 
 #### Supported for graphics card (gfx1201)
 
-Is now supported since 0.20. 
+Is now supported since 0.20.
 
 ```
 thread 'main' (40614) panicked at crates/cubecl-hip/src/runtime.rs:90:9:
@@ -82,7 +88,6 @@ crates/cubecl-cpp/src/hip/mma/rocwmma_compiler.rs add Architecture::GFX12
 ### Switch to dev version
 
 comment out the lines ### For local development. ###
+
 * burn/Cargo.toml
 * cubek/Cargo.toml
-
-
