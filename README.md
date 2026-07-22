@@ -2,7 +2,10 @@
 
 Stable-Diffusion-Burn is a Rust-based project which ports the V1 stable diffusion model into the deep learning framework, Burn. This repository is licensed under the MIT Licence.
 This is a fork of https://github.com/Gadersd/stable-diffusion-burn.
-Probably integrate sdxl, https://github.com/CaptainMaso/stable-diffusion-xl-burn
+
+Other implementations: 
+* https://github.com/oxiglade/diffusers-burn
+* https://github.com/CaptainMaso/stable-diffusion-xl-burn
 
 ## Focus
 
